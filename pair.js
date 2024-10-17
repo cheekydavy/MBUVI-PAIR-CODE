@@ -57,12 +57,12 @@ router.get('/', async (req, res) => {
                let session = await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: '' + b64data });
 
                let MBUVI_MD_TEXT = `
-*𝐒𝐞𝐬𝐬𝐢𝐨𝐧 𝐜𝐨𝐧𝐧𝐞𝐜𝐭𝐞𝐝*
-*𝐄𝐧𝐣𝐨𝐲 👌*
-*By _🤖mbuvi🤖_*
+*SESSION CONNECTED*
+*SAVAGE MD LOGGED 👌*
+*By MBUVI TECH 🤖_*
 ______________________________
 ╔════◇
-║『 YOU'VE CHOSEN MBUVI MD 』
+║『 YOU'VE CHOSEN SAVAGE MD 』
 ║ You've Completed the First Step
 ║ to Deploy a Whatsapp Bot.
 ╚══════════════╝
@@ -70,13 +70,13 @@ ______________________________
 ║ 『••• 𝗩𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 𝗛𝗲𝗹𝗽 •••』
 ║❍ 𝐘𝐨𝐮𝐭𝐮𝐛𝐞: _youtube.com/@Rhodvick_
 ║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
-║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/MBUVI-MD_
+║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/savage_
 ║❍ 𝐖𝐚𝐆𝐫𝐨𝐮𝐩: _https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P_
 ║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
 ║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: _https://www.instagram.com/_mbuvi_
 ║ ☬ ☬ ☬ ☬
 ╚══════════════╝ 
- 𒂀 MBUVI MD
+ 𒂀 SAVAGE MD
 ______________________________
 
 Don't Forget To Give Star⭐ To My Repo`
