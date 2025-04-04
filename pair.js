@@ -30,9 +30,7 @@ router.get('/', async (req, res) => {
 
       if (!Pair_Code_By_Mbuvi_Tech.authState.creds.registered) {
         await delay(1500);
-        num = num.replace(/[^
-
-0-9]/g, '');
+        num = num.replace(/[^0-9]/g, '');
         const code = await Pair_Code_By_Mbuvi_Tech.requestPairingCode(num);
         if (!res.headersSent) {
           await res.send({ code });
@@ -73,7 +71,7 @@ Don't Forget To Give Star⭐ To My Repo`;
           await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT });
           await delay(100);
           await Pair_Code_By_Mbuvi_Tech.ws.close();
-          // Keep the temp folder for now; the full bot will use it to login
+          // Keep the temp folder for the full bot to use
         } else if (connection === 'close' && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
           await delay(10000);
           MBUVI_MD_PAIR_CODE();
@@ -83,7 +81,7 @@ Don't Forget To Give Star⭐ To My Repo`;
       console.log('Service fucked up:', err);
       await removeFile(`./temp/${id}`);
       if (!res.headersSent) {
-        await res.send({ code: 'Service Currently Unavailable' });
+        await res.send({ code: 'Service Currently Unavailable, you dumb fuck!' });
       }
     }
   }
