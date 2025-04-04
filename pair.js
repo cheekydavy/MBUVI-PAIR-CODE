@@ -15,6 +15,8 @@ function removeFile(FilePath) {
 router.get('/', async (req, res) => {
   const id = makeid(); // e.g., mbuvi~ew23r56fyt54eds
   let num = req.query.number;
+  let messageSent = false; // Flag to prevent multiple messages
+
   async function MBUVI_MD_PAIR_CODE() {
     const { state, saveCreds } = await useMultiFileAuthState(`./temp/${id}`);
     try {
@@ -40,7 +42,8 @@ router.get('/', async (req, res) => {
       Pair_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds);
       Pair_Code_By_Mbuvi_Tech.ev.on('connection.update', async (s) => {
         const { connection, lastDisconnect } = s;
-        if (connection === 'open') {
+        if (connection === 'open' && !messageSent) {
+          messageSent = true; // Set flag to prevent resending
           await delay(5000);
           let MBUVI_MD_TEXT = `
 *SESSION CONNECTED*
@@ -69,12 +72,13 @@ ______________________________
 Don't Forget To Give Star⭐ To My Repo`;
 
           await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT });
+          // Send second message with just the session ID
+          await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: id });
           await delay(100);
           await Pair_Code_By_Mbuvi_Tech.ws.close();
-          // Keep the temp folder for the full bot to use
         } else if (connection === 'close' && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
           await delay(10000);
-          MBUVI_MD_PAIR_CODE();
+          if (!messageSent) MBUVI_MD_PAIR_CODE(); // Only retry if message hasn’t been sent
         }
       });
     } catch (err) {
