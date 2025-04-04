@@ -5,7 +5,7 @@ const express = require('express');
 const fs = require('fs');
 let router = express.Router();
 const pino = require('pino');
-const { default: Mbuvi_Tech, useMultiFileAuthState, delay, makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
+const { default: Mbuvi_Tech, useMultiFileAuthState, delay, makeCacheableSignalKeyStore, Browsers } = require('maher-zubair-baileys');
 
 function removeFile(FilePath) {
   if (!fs.existsSync(FilePath)) return false;
@@ -25,12 +25,14 @@ router.get('/', async (req, res) => {
         },
         printQRInTerminal: false,
         logger: pino({ level: 'fatal' }).child({ level: 'fatal' }),
-        browser: ['Chrome (Ubuntu)', 'Chrome', '20.0'],
+        browser: ['Chrome (Ubuntu)', 'Chrome (Linux)', 'Chrome (MacOs)'],
       });
 
       if (!Pair_Code_By_Mbuvi_Tech.authState.creds.registered) {
         await delay(1500);
-        num = num.replace(/[^0-9]/g, '');
+        num = num.replace(/[^
+
+0-9]/g, '');
         const code = await Pair_Code_By_Mbuvi_Tech.requestPairingCode(num);
         if (!res.headersSent) {
           await res.send({ code });
@@ -55,8 +57,13 @@ ______________________________
 ╚══════════════╝
 ╔═════◇
 ║ 『••• 𝗩𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 𝗛𝗲𝗹𝗽 •••』
-║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
+║❍ 𝐘𝐨𝐮𝐭𝐮𝐛𝐞: _youtube.com/@Rhodvick_
 ║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
+║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
+║❍ 𝐖𝐚𝐆𝐫𝐨𝐮𝐩: _https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P_
+║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
+║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: _https://www.instagram.com/_mbuvi_
+║ ☬ ☬ ☬ ☬
 ╚══════════════╝ 
  𒂀 MBUVI MD
 ______________________________
@@ -66,7 +73,7 @@ Don't Forget To Give Star⭐ To My Repo`;
           await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT });
           await delay(100);
           await Pair_Code_By_Mbuvi_Tech.ws.close();
-          // Don’t remove the temp folder yet; we need it for login
+          // Keep the temp folder for now; the full bot will use it to login
         } else if (connection === 'close' && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
           await delay(10000);
           MBUVI_MD_PAIR_CODE();
