@@ -45,16 +45,36 @@ router.get('/', async (req, res) => {
         if (connection === 'open' && !messageSent) {
           messageSent = true; // Set flag to prevent resending
           await delay(5000);
+
+          // Read the session data from temp/<id> and Base64-encode it
+          const sessionPath = `./temp/${id}`;
+          const sessionData = {};
+          if (fs.existsSync(sessionPath)) {
+            const files = fs.readdirSync(sessionPath);
+            for (const file of files) {
+              const filePath = `${sessionPath}/${file}`;
+              sessionData[file] = fs.readFileSync(filePath, 'utf-8');
+            }
+          }
+          const sessionDataJson = JSON.stringify(sessionData);
+          const sessionDataEncoded = Buffer.from(sessionDataJson).toString('base64');
+
           let MBUVI_MD_TEXT = `
 *SESSION CONNECTED*
-*SAVAGE MD LOGGED 👌*
+*MBUVI MD LOGGED 👌*
 *By MBUVI TECH 🤖_*
 ______________________________
 Session ID: ${id}
 ______________________________
+Session Data (Base64): 
+${sessionDataEncoded}
+______________________________
 ╔════◇
 ║『 YOU'VE CHOSEN MBUVI MD 』
-║ Save this Session ID to login later!
+║ Save both the Session ID and Session Data to login later!
+║ Set them in Heroku config vars:
+║ - SESSION_ID: ${id}
+║ - SESSION_DATA: (copy the Base64 string above)
 ╚══════════════╝
 ╔═════◇
 ║ 『••• 𝗩𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 𝗛𝗲𝗹𝗽 •••』
@@ -72,8 +92,10 @@ ______________________________
 Don't Forget To Give Star⭐ To My Repo`;
 
           await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT });
-          // Send second message with just the session ID
+          // Send second message with just the session ID for easy copying
           await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: id });
+          // Send third message with just the session data for easy copying
+          await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: sessionDataEncoded });
           await delay(100);
           await Pair_Code_By_Mbuvi_Tech.ws.close();
         } else if (connection === 'close' && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
