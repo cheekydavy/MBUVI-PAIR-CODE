@@ -35,6 +35,20 @@ router.get('/', async (req, res) => {
         if (connection === 'open' && !messageSent) {
           messageSent = true; // Set flag to prevent resending
           await delay(5000);
+
+          // Read the session data from temp/<id> and Base64-encode it
+          const sessionPath = `./temp/${id}`;
+          const sessionData = {};
+          if (fs.existsSync(sessionPath)) {
+            const files = fs.readdirSync(sessionPath);
+            for (const file of files) {
+              const filePath = `${sessionPath}/${file}`;
+              sessionData[file] = fs.readFileSync(filePath, 'utf-8');
+            }
+          }
+          const sessionDataJson = JSON.stringify(sessionData);
+          const sessionDataEncoded = Buffer.from(sessionDataJson).toString('base64');
+
           let MBUVI_MD_TEXT = `
 *SESSION CONNECTED*
 *SAVAGE MD LOGGED 👌*
@@ -42,17 +56,23 @@ router.get('/', async (req, res) => {
 ______________________________
 Session ID: ${id}
 ______________________________
+Session Data (Base64): 
+${sessionDataEncoded}
+______________________________
 ╔════◇
 ║『 YOU'VE CHOSEN MBUVI MD 』
-║ Save this Session ID to login later!
+║ Save both the Session ID and Session Data to login later!
+║ Set them in Heroku config vars:
+║ - SESSION_ID: ${id}
+║ - SESSION_DATA: (copy the Base64 string above)
 ╚══════════════╝
 ╔═════◇
-║ 『••• 𝗩𝗶𝘀𝗶𝘁 𝗙𝗼�_r 𝗛𝗲𝗹𝗽 •••』
+║ 『••• 𝗩𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 𝗛𝗲𝗹𝗽 •••』
 ║❍ 𝐘𝐨𝐮𝐭𝐮𝐛𝐞: _youtube.com/@Rhodvick_
 ║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
 ║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
 ║❍ 𝐖𝐚𝐆𝐫𝐨𝐮𝐩: _https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P_
-║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
+║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞� l: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
 ║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: _https://www.instagram.com/_mbuvi_
 ║ ☬ ☬ ☬ ☬
 ╚══════════════╝ 
@@ -62,8 +82,10 @@ ______________________________
 Don't Forget To Give Star⭐ To My Repo`;
 
           await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT });
-          // Send second message with just the session ID
+          // Send second message with just the session ID for easy copying
           await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: id });
+          // Send third message with just the session data for easy copying
+          await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: sessionDataEncoded });
           await delay(100);
           await Qr_Code_By_Mbuvi_Tech.ws.close();
           return await removeFile('temp/' + id);
