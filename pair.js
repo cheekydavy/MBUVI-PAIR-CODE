@@ -17,16 +17,15 @@ router.get('/', async (req, res) => {
   let num = req.query.number;
   let messageSent = false;
   const sessionFolder = `./temp/${randomId}`;
-  console.log(`[Pair] Starting pairing for number: ${num}, session ID: ${randomId}`);
+  console.log(`[Pair] Starting pairing for number: ${num}, session ID: mbuvi~${randomId}`);
 
-  // Set a timeout for the entire pairing process
   const timeout = setTimeout(() => {
     if (!res.headersSent) {
-      console.error(`[Pair Error] Pairing timed out for ${randomId}`);
+      console.error(`[Pair Error] Pairing timed out for mbuvi~${randomId}`);
       res.status(503).send({ code: 'Pairing timed out, try again later, you fuck!' });
       removeFile(sessionFolder);
     }
-  }, 25000); // 25s to stay under Heroku's 30s limit
+  }, 25000);
 
   async function MBUVI_MD_PAIR_CODE() {
     try {
@@ -39,6 +38,7 @@ router.get('/', async (req, res) => {
         printQRInTerminal: false,
         logger: pino({ level: 'fatal' }).child({ level: 'fatal' }),
         browser: ['Chrome (Ubuntu)', 'Chrome (Linux)', 'Chrome (MacOs)'],
+        defaultQueryTimeoutMs: 15000, // Faster timeout
       });
 
       if (!Pair_Code_By_Mbuvi_Tech.authState.creds.registered) {
@@ -55,15 +55,14 @@ router.get('/', async (req, res) => {
       Pair_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds);
       Pair_Code_By_Mbuvi_Tech.ev.on('connection.update', async (s) => {
         const { connection, lastDisconnect } = s;
-        console.log(`[Pair] Connection update: ${connection}, ID: ${randomId}`);
+        console.log(`[Pair] Connection update: ${connection}, ID: mbuvi~${randomId}`);
 
         if (connection === 'open' && !messageSent) {
           messageSent = true;
           clearTimeout(timeout);
-          console.log(`[Pair] Connection opened, sending messages for ${randomId}`);
-          await delay(2000); // Reduced delay to speed up
+          console.log(`[Pair] Connection opened, sending messages for mbuvi~${randomId}`);
+          await delay(1000); // Shorter delay
 
-          // Read session data and encode it
           const sessionData = {};
           if (fs.existsSync(sessionFolder)) {
             const files = fs.readdirSync(sessionFolder);
@@ -107,23 +106,33 @@ Session ID: ${sessionId}
 ______________________________`;
 
           try {
-            await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT });
-            await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: sessionId });
-            console.log(`[Pair] Messages sent for ${randomId}`);
+            await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT }, { timeout: 10000 });
+            await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: sessionId }, { timeout: 10000 });
+            console.log(`[Pair] Messages successfully sent for mbuvi~${randomId}`);
           } catch (e) {
             console.error(`[Pair Error] Failed to send messages: ${e.message}`);
           }
-          await delay(100);
-          await Pair_Code_By_Mbuvi_Tech.ws.close();
+          try {
+            await Pair_Code_By_Mbuvi_Tech.ws.close();
+            console.log(`[Pair] WebSocket closed for mbuvi~${randomId}`);
+          } catch (e) {
+            console.error(`[Pair Error] Failed to close WebSocket: ${e.message}`);
+          }
           removeFile(sessionFolder);
         } else if (connection === 'close' && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
-          console.log(`[Pair] Connection closed, retrying for ${randomId}`);
+          console.log(`[Pair] Connection closed, retrying for mbuvi~${randomId}`);
           await delay(5000);
-          if (!messageSent) MBUVI_MD_PAIR_CODE();
+          if (!messageSent) {
+            try {
+              await MBUVI_MD_PAIR_CODE();
+            } catch (e) {
+              console.error(`[Pair Error] Retry failed: ${e.message}`);
+            }
+          }
         }
       });
     } catch (err) {
-      console.error(`[Pair Error] Service failed for ${randomId}: ${err.message}`);
+      console.error(`[Pair Error] Service failed for mbuvi~${randomId}: ${err.message}`);
       clearTimeout(timeout);
       await removeFile(sessionFolder);
       if (!res.headersSent) {
@@ -131,6 +140,10 @@ ______________________________`;
       }
     }
   }
-  return await MBUVI_MD_PAIR_CODE();
+  try {
+    await MBUVI_MD_PAIR_CODE();
+  } catch (e) {
+    console.error(`[Pair Error] Top-level failure for mbuvi~${randomId}: ${e.message}`);
+  }
 });
 module.exports = router;
