@@ -17,6 +17,7 @@ function removeFile(FilePath) {
 router.get('/', async (req, res) => {
   const randomId = makeid();
   let messageSent = false;
+  let retryAttempts = 0; // Track connection retries
   const sessionFolder = `./temp/${randomId}`;
   console.log(`[QR] Starting QR code generation, session ID: mbuvi~${randomId}`);
 
@@ -36,7 +37,7 @@ router.get('/', async (req, res) => {
         printQRInTerminal: false,
         logger: pino({ level: 'silent' }),
         browser: Browsers.macOS('Desktop'),
-        defaultQueryTimeoutMs: 30000, // Increased for stability
+        defaultQueryTimeoutMs: 30000,
       });
 
       Qr_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds);
@@ -94,23 +95,23 @@ ______________________________
 Don't Forget To Give Star⭐ To My Repo
 ______________________________`;
 
-          // Send session ID first, then main text
-          let attempts = 0;
-          const maxAttempts = 3;
-          while (attempts < maxAttempts && !messageSent) {
+          let msgAttempts = 0;
+          const maxMsgAttempts = 3;
+          let messagesSentSuccessfully = false;
+          while (msgAttempts < maxMsgAttempts && !messagesSentSuccessfully) {
             try {
               await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: sessionId }, { timeout: 15000 });
               await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT }, { timeout: 15000 });
               console.log(`[QR] Messages successfully sent for mbuvi~${randomId}`);
-              messageSent = true;
+              messagesSentSuccessfully = true;
             } catch (e) {
-              attempts++;
-              console.error(`[QR Error] Message send attempt ${attempts} failed: ${e.message}`);
-              if (attempts < maxAttempts) await delay(2000);
+              msgAttempts++;
+              console.error(`[QR Error] Message send attempt ${msgAttempts} failed: ${e.message}`);
+              if (msgAttempts < maxMsgAttempts) await delay(2000);
             }
           }
-          if (!messageSent) {
-            console.error(`[QR Error] Failed to send messages after ${maxAttempts} attempts`);
+          if (!messagesSentSuccessfully) {
+            console.error(`[QR Error] Failed to send messages after ${maxMsgAttempts} attempts`);
           }
           try {
             await Qr_Code_By_Mbuvi_Tech.ws.close();
@@ -122,12 +123,15 @@ ______________________________`;
         } else if (connection === 'close' && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
           console.log(`[QR] Connection closed, retrying for mbuvi~${randomId}`);
           await delay(5000);
-          if (!messageSent && attempts < 2) { // Limit retries
+          if (!messageSent && retryAttempts < 2) {
+            retryAttempts++;
             try {
               await MBUVI_MD_QR_CODE();
             } catch (e) {
-              console.error(`[QR Error] Retry failed: ${e.message}`);
+              console.error(`[QR Error] Retry ${retryAttempts} failed: ${e.message}`);
             }
+          } else {
+            console.log(`[QR] Max retries reached for mbuvi~${randomId}`);
           }
         }
       });
