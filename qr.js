@@ -36,7 +36,7 @@ router.get('/', async (req, res) => {
         printQRInTerminal: false,
         logger: pino({ level: 'silent' }),
         browser: Browsers.macOS('Desktop'),
-        defaultQueryTimeoutMs: 15000, // Faster timeout
+        defaultQueryTimeoutMs: 30000, // Increased for stability
       });
 
       Qr_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds);
@@ -92,25 +92,21 @@ ________________________
 ______________________________
 
 Don't Forget To Give Star⭐ To My Repo
-______________________________
-Session ID: ${sessionId}
 ______________________________`;
 
-          // Retry message sending up to 3 times
+          // Send session ID first, then main text
           let attempts = 0;
           const maxAttempts = 3;
           while (attempts < maxAttempts && !messageSent) {
             try {
-              await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT }, { timeout: 10000 });
-              await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: sessionId }, { timeout: 10000 });
+              await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: sessionId }, { timeout: 15000 });
+              await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT }, { timeout: 15000 });
               console.log(`[QR] Messages successfully sent for mbuvi~${randomId}`);
               messageSent = true;
             } catch (e) {
               attempts++;
               console.error(`[QR Error] Message send attempt ${attempts} failed: ${e.message}`);
-              if (attempts < maxAttempts) {
-                await delay(2000);
-              }
+              if (attempts < maxAttempts) await delay(2000);
             }
           }
           if (!messageSent) {
@@ -126,7 +122,7 @@ ______________________________`;
         } else if (connection === 'close' && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
           console.log(`[QR] Connection closed, retrying for mbuvi~${randomId}`);
           await delay(5000);
-          if (!messageSent) {
+          if (!messageSent && attempts < 2) { // Limit retries
             try {
               await MBUVI_MD_QR_CODE();
             } catch (e) {
