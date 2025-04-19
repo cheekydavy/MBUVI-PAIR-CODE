@@ -77,6 +77,7 @@
       gap: 40px;
       position: relative;
       z-index: 1;
+      margin-top: 60px; /* Space for fixed ticker */
     }
 
     /* News Ticker */
@@ -85,15 +86,15 @@
       top: 0;
       left: 0;
       right: 0;
-      background: rgba(0, 0, 0, 0.9);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
       z-index: 1000;
       font-family: 'Orbitron', sans-serif;
-      display: flex;
-      flex-direction: column;
     }
 
     .news-container .title {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 40%;
       background: linear-gradient(90deg, #ff2e63, #7209b7);
       padding: 10px 24px;
       color: #fff;
@@ -101,25 +102,28 @@
       text-transform: uppercase;
       letter-spacing: 2px;
       text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-      text-align: center;
+      z-index: 1001;
     }
 
     .news-container .ticker {
-      overflow: hidden;
       width: 100%;
+      overflow: hidden;
+      background: rgba(0, 0, 0, 0.9);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+      margin-left: 40%; /* Align ticker content to right of title */
     }
 
     .news-container ul {
       display: flex;
       list-style: none;
       margin: 0;
-      padding: 0;
+      padding: 10px 0;
       animation: scroll 20s infinite linear;
     }
 
     .news-container ul li {
       white-space: nowrap;
-      padding: 10px 24px;
+      padding: 0 24px;
       color: #00ffcc;
       font-size: 1rem;
       text-shadow: 0 0 5px #00ffcc;
@@ -349,7 +353,23 @@
     /* Responsive Design */
     @media (max-width: 768px) {
       .container {
-        padding: 10px;
+        padding: 10px 10px; /* Add left/right spacing for boxes */
+        margin-top: 80px; /* Adjust for mobile ticker */
+      }
+
+      .news-container .title {
+        width: 50%;
+        font-size: 0.7rem; /* Smaller font for one line */
+        padding: 8px 15px;
+      }
+
+      .news-container .ticker {
+        margin-left: 50%;
+      }
+
+      .news-container ul li {
+        font-size: 0.8rem;
+        padding: 8px 15px;
       }
 
       .hero h1 {
@@ -381,16 +401,6 @@
       .feature-card .btn {
         font-size: 0.9rem;
         padding: 0.6em;
-      }
-
-      .news-container .title {
-        font-size: 0.9rem;
-        padding: 0 15px;
-      }
-
-      .news-container ul li {
-        font-size: 0.8rem;
-        padding: 8px 15px;
       }
 
       .footer .social-links {
