@@ -15,11 +15,12 @@ function removeFile(FilePath) {
 }
 
 router.get('/', async (req, res) => {
-  const id = makeid();
-  let messageSent = false; // Flag to prevent multiple messages
+  const randomId = makeid();
+  let messageSent = false;
 
   async function MBUVI_MD_QR_CODE() {
-    const { state, saveCreds } = await useMultiFileAuthState('./temp/' + id);
+    const sessionFolder = `./temp/${randomId}`;
+    const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
     try {
       let Qr_Code_By_Mbuvi_Tech = Mbuvi_Tech({
         auth: state,
@@ -33,35 +34,33 @@ router.get('/', async (req, res) => {
         const { connection, lastDisconnect, qr } = s;
         if (qr) await res.end(await QRCode.toBuffer(qr));
         if (connection === 'open' && !messageSent) {
-          messageSent = true; // Set flag to prevent resending
+          messageSent = true;
           await delay(5000);
 
-          // Read the session data from temp/<id> and Base64-encode it
-          const sessionPath = `./temp/${id}`;
+          // Read session data and encode it
           const sessionData = {};
-          if (fs.existsSync(sessionPath)) {
-            const files = fs.readdirSync(sessionPath);
+          if (fs.existsSync(sessionFolder)) {
+            const files = fs.readdirSync(sessionFolder);
             for (const file of files) {
-              const filePath = `${sessionPath}/${file}`;
+              const filePath = `${sessionFolder}/${file}`;
               sessionData[file] = fs.readFileSync(filePath, 'utf-8');
             }
           }
           const sessionDataJson = JSON.stringify(sessionData);
           const sessionDataEncoded = Buffer.from(sessionDataJson).toString('base64');
+          const sessionId = `mbuvi~${randomId}_${sessionDataEncoded}`;
 
           let MBUVI_MD_TEXT = `
 ╔════════════════════◇
-║『 *SESSION CONNECTED*』
-║ ✨*MBUVI-MD*🔷
-║ ✨*Mbuvi Tech*🔷
+║『 SESSION CONNECTED』
+║ ✨MBUVI-MD🔷
+║ ✨Mbuvi Tech🔷
 ╚════════════════════╝
 ________________________
 ╔════════════════════◇
-║『 *YOU'VE CHOSEN MBUVI MD* 』
-║ -You'll need both session id and data.
-║ -Set them in Heroku config vars:
-║ - SESSION_ID: like mbuvi~
-║ - SESSION_DATA: The second text.
+║『 YOU'VE CHOSEN MBUVI MD 』
+║ -Set the session ID in Heroku config vars:
+║ - SESSION_ID: mbuvi~<data>
 ╚════════════════════╝
 ╔════════════════════◇
 ║ 『••• 𝗩𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 �_H𝗲𝗹𝗽 •••』
@@ -78,23 +77,17 @@ ______________________________
 
 Don't Forget To Give Star⭐ To My Repo
 ______________________________
-Session ID: ${id}
-______________________________
-Session Data (Base64): 
-${sessionDataEncoded}
+Session ID: ${sessionId}
 ______________________________`;
 
           await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT });
-          // Send second message with just the session ID for easy copying
-          await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: id });
-          // Send third message with just the session data for easy copying
-          await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: sessionDataEncoded });
+          await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: sessionId });
           await delay(100);
           await Qr_Code_By_Mbuvi_Tech.ws.close();
-          return await removeFile('temp/' + id);
+          return await removeFile(sessionFolder);
         } else if (connection === 'close' && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
           await delay(10000);
-          if (!messageSent) MBUVI_MD_QR_CODE(); // Only retry if message hasn’t been sent
+          if (!messageSent) MBUVI_MD_QR_CODE();
         }
       });
     } catch (err) {
@@ -102,7 +95,7 @@ ______________________________`;
         await res.json({ code: 'Service is Currently Unavailable, you dumb fuck!' });
       }
       console.log(err);
-      await removeFile('temp/' + id);
+      await removeFile(sessionFolder);
     }
   }
   return await MBUVI_MD_QR_CODE();
