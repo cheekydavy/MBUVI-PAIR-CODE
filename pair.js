@@ -13,14 +13,24 @@ function removeFile(FilePath) {
 }
 
 router.get('/', async (req, res) => {
-  const randomId = makeid(); // e.g., ew23r56fyt54eds
+  const randomId = makeid();
   let num = req.query.number;
   let messageSent = false;
+  const sessionFolder = `./temp/${randomId}`;
+  console.log(`[Pair] Starting pairing for number: ${num}, session ID: ${randomId}`);
+
+  // Set a timeout for the entire pairing process
+  const timeout = setTimeout(() => {
+    if (!res.headersSent) {
+      console.error(`[Pair Error] Pairing timed out for ${randomId}`);
+      res.status(503).send({ code: 'Pairing timed out, try again later, you fuck!' });
+      removeFile(sessionFolder);
+    }
+  }, 25000); // 25s to stay under Heroku's 30s limit
 
   async function MBUVI_MD_PAIR_CODE() {
-    const sessionFolder = `./temp/${randomId}`;
-    const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
     try {
+      const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
       let Pair_Code_By_Mbuvi_Tech = Mbuvi_Tech({
         auth: {
           creds: state.creds,
@@ -34,18 +44,24 @@ router.get('/', async (req, res) => {
       if (!Pair_Code_By_Mbuvi_Tech.authState.creds.registered) {
         await delay(1500);
         num = num.replace(/[^0-9]/g, '');
+        console.log(`[Pair] Requesting pairing code for ${num}`);
         const code = await Pair_Code_By_Mbuvi_Tech.requestPairingCode(num);
         if (!res.headersSent) {
-          await res.send({ code });
+          console.log(`[Pair] Pairing code generated: ${code}`);
+          res.send({ code });
         }
       }
 
       Pair_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds);
       Pair_Code_By_Mbuvi_Tech.ev.on('connection.update', async (s) => {
         const { connection, lastDisconnect } = s;
+        console.log(`[Pair] Connection update: ${connection}, ID: ${randomId}`);
+
         if (connection === 'open' && !messageSent) {
           messageSent = true;
-          await delay(5000);
+          clearTimeout(timeout);
+          console.log(`[Pair] Connection opened, sending messages for ${randomId}`);
+          await delay(2000); // Reduced delay to speed up
 
           // Read session data and encode it
           const sessionData = {};
@@ -62,13 +78,13 @@ router.get('/', async (req, res) => {
 
           let MBUVI_MD_TEXT = `
 ╔════════════════════◇
-║『 SESSION CONNECTED』
-║ ✨MBUVI-MD🔷
-║ ✨Mbuvi Tech🔷
+║『 *SESSION CONNECTED*』
+║ ✨*MBUVI-MD*🔷
+║ ✨*Mbuvi Tech*🔷
 ╚════════════════════╝
 ________________________
 ╔════════════════════◇
-║『 YOU'VE CHOSEN MBUVI MD 』
+║『 *YOU'VE CHOSEN MBUVI MD* 』
 ║ -Set the session ID in Heroku config vars:
 ║ - SESSION_ID: mbuvi~<data>
 ╚════════════════════╝
@@ -90,20 +106,28 @@ ______________________________
 Session ID: ${sessionId}
 ______________________________`;
 
-          await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT });
-          await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: sessionId });
+          try {
+            await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT });
+            await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: sessionId });
+            console.log(`[Pair] Messages sent for ${randomId}`);
+          } catch (e) {
+            console.error(`[Pair Error] Failed to send messages: ${e.message}`);
+          }
           await delay(100);
           await Pair_Code_By_Mbuvi_Tech.ws.close();
+          removeFile(sessionFolder);
         } else if (connection === 'close' && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
-          await delay(10000);
+          console.log(`[Pair] Connection closed, retrying for ${randomId}`);
+          await delay(5000);
           if (!messageSent) MBUVI_MD_PAIR_CODE();
         }
       });
     } catch (err) {
-      console.log('Service fucked up:', err);
+      console.error(`[Pair Error] Service failed for ${randomId}: ${err.message}`);
+      clearTimeout(timeout);
       await removeFile(sessionFolder);
       if (!res.headersSent) {
-        await res.send({ code: 'Service Currently Unavailable, you dumb fuck!' });
+        res.status(503).send({ code: 'Service Currently Unavailable, you dumb fuck!' });
       }
     }
   }
