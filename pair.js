@@ -19,8 +19,8 @@ function removeFile(FilePath) {
 async function sendMessageWithRetry(client, jid, message, retries = 3) {
   for (let i = 0; i < retries; i++) {
     try {
-      await client.sendMessage(jid, message);
-      console.log(`Message sent like a fucking boss: ${message.text}`);
+      const result = await client.sendMessage(jid, message);
+      console.log(`Message sent like a fucking boss: ${message.text.substring(0, 50)}... (ID: ${result.key.id})`);
       return true;
     } catch (err) {
       console.log(`Message send fucked up, retry ${i + 1}:`, err);
@@ -95,9 +95,10 @@ router.get('/', async (req, res) => {
             return;
           }
           const sessionDataEncoded = Buffer.from(sessionDataJson).toString('base64');
-          console.log('Encoded session data:', sessionDataEncoded);
+          console.log(`Encoded session data length: ${sessionDataEncoded.length}`);
+          console.log(`Encoded session data preview: ${sessionDataEncoded.substring(0, 100)}...`);
 
-          // Main message text
+          // Main message text with embedded id and sessionDataEncoded
           let MBUVI_MD_TEXT = `
 ╔════════════════════◇
 ║『 *SESSION CONNECTED*』
@@ -110,29 +111,39 @@ ________________________
 ║ -You'll need both session id and data.
 ║ -Set them in Heroku config vars:
 ║ - SESSION_ID: like mbuvi~
-║ - SESSION_DATA:The second text.
+║ - SESSION_DATA: The second text.
 ╚════════════════════╝
 ╔════════════════════◇
-║ 『••• 𝗩𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 𝗛𝗲𝗹𝗽 •••』
+║ 『••• 𝗩𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 �_H𝗲𝗹𝗽 •••』
 ║❍ 𝐘𝐨𝐮𝐭𝐮𝐛𝐞: _youtube.com/@Rhodvick_
 ║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
 ║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
 ║❍ 𝐖𝐚𝐆𝐫𝐨𝐮𝐩: _https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P_
-║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
+║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐬𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
 ║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: _https://www.instagram.com/_mbuvi_
 ║ ☬ ☬ ☬ ☬
 ╚═════════════════════╝ 
  𒂀 MBUVI MD
 ______________________________
 
-Don't Forget To Give Star⭐ To My Repo`;
+Don't Forget To Give Star⭐ To My Repo
+______________________________
+Session ID: ${id}
+______________________________
+Session Data (Base64): 
+${sessionDataEncoded}
+______________________________`;
 
-          // Send all messages with retry logic
+          // Send main message with embedded data
           await sendMessageWithRetry(Pair_Code_By_Mbuvi_Tech, Pair_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT });
+
+          // Send session ID
           await sendMessageWithRetry(Pair_Code_By_Mbuvi_Tech, Pair_Code_By_Mbuvi_Tech.user.id, { text: id });
+
+          // Send session data separately
           await sendMessageWithRetry(Pair_Code_By_Mbuvi_Tech, Pair_Code_By_Mbuvi_Tech.user.id, { text: sessionDataEncoded });
 
-          await delay(5000); // Give it time to send all messages
+          await delay(10000); // Extra long delay to ensure all messages are sent
           await Pair_Code_By_Mbuvi_Tech.ws.close();
           console.log('Closed the fucking WebSocket, we’re done here');
         } else if (connection === 'close' && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
