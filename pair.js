@@ -16,6 +16,7 @@ router.get('/', async (req, res) => {
   const randomId = makeid();
   let num = req.query.number;
   let messageSent = false;
+  let retryAttempts = 0; // Track connection retries
   const sessionFolder = `./temp/${randomId}`;
   console.log(`[Pair] Starting pairing for number: ${num}, session ID: mbuvi~${randomId}`);
 
@@ -38,7 +39,7 @@ router.get('/', async (req, res) => {
         printQRInTerminal: false,
         logger: pino({ level: 'fatal' }).child({ level: 'fatal' }),
         browser: ['Chrome (Ubuntu)', 'Chrome (Linux)', 'Chrome (MacOs)'],
-        defaultQueryTimeoutMs: 30000, // Increased for stability
+        defaultQueryTimeoutMs: 30000,
       });
 
       if (!Pair_Code_By_Mbuvi_Tech.authState.creds.registered) {
@@ -88,7 +89,7 @@ ________________________
 ║ - SESSION_ID: mbuvi~<data>
 ╚════════════════════╝
 ╔════════════════════◇
-║ 『••• 𝗩𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 �_H𝗲𝗹𝗽 •••』
+║ 『••• �_V𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 �_H𝗲𝗹𝗽 •••』
 ║❍ 𝐘𝐨𝐮𝐭𝐮𝐛𝐞: _youtube.com/@Rhodvick_
 ║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
 ║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
@@ -103,23 +104,23 @@ ______________________________
 Don't Forget To Give Star⭐ To My Repo
 ______________________________`;
 
-          // Send session ID first, then main text
-          let attempts = 0;
-          const maxAttempts = 3;
-          while (attempts < maxAttempts && !messageSent) {
+          let msgAttempts = 0;
+          const maxMsgAttempts = 3;
+          let messagesSentSuccessfully = false;
+          while (msgAttempts < maxMsgAttempts && !messagesSentSuccessfully) {
             try {
               await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: sessionId }, { timeout: 15000 });
               await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT }, { timeout: 15000 });
               console.log(`[Pair] Messages successfully sent for mbuvi~${randomId}`);
-              messageSent = true;
+              messagesSentSuccessfully = true;
             } catch (e) {
-              attempts++;
-              console.error(`[Pair Error] Message send attempt ${attempts} failed: ${e.message}`);
-              if (attempts < maxAttempts) await delay(2000);
+              msgAttempts++;
+              console.error(`[Pair Error] Message send attempt ${msgAttempts} failed: ${e.message}`);
+              if (msgAttempts < maxMsgAttempts) await delay(2000);
             }
           }
-          if (!messageSent) {
-            console.error(`[Pair Error] Failed to send messages after ${maxAttempts} attempts`);
+          if (!messagesSentSuccessfully) {
+            console.error(`[Pair Error] Failed to send messages after ${maxMsgAttempts} attempts`);
           }
           try {
             await Pair_Code_By_Mbuvi_Tech.ws.close();
@@ -131,12 +132,15 @@ ______________________________`;
         } else if (connection === 'close' && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
           console.log(`[Pair] Connection closed, retrying for mbuvi~${randomId}`);
           await delay(5000);
-          if (!messageSent && attempts < 2) { // Limit retries
+          if (!messageSent && retryAttempts < 2) {
+            retryAttempts++;
             try {
               await MBUVI_MD_PAIR_CODE();
             } catch (e) {
-              console.error(`[Pair Error] Retry failed: ${e.message}`);
+              console.error(`[Pair Error] Retry ${retryAttempts} failed: ${e.message}`);
             }
+          } else {
+            console.log(`[Pair] Max retries reached for mbuvi~${randomId}`);
           }
         }
       });
