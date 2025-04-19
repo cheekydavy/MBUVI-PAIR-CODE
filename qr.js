@@ -50,29 +50,32 @@ router.get('/', async (req, res) => {
           const sessionDataEncoded = Buffer.from(sessionDataJson).toString('base64');
 
           let MBUVI_MD_TEXT = `
-╔════════════════════◇
-║『 *SESSION CONNECTED*』
-║ ✨*MBUVI-MD*🔷
-║ ✨*Mbuvi Tech*🔷
-╚════════════════════╝
-________________________
-╔════════════════════◇
-║『 *YOU'VE CHOSEN MBUVI MD* 』
-║ -You'll need both session id and data.
-║ -Set them in Heroku config vars:
+*SESSION CONNECTED*
+*SAVAGE MD LOGGED 👌*
+*By MBUVI TECH 🤖_*
+______________________________
+Session ID: ${id}
+______________________________
+Session Data (Base64): 
+${sessionDataEncoded}
+______________________________
+╔════◇
+║『 YOU'VE CHOSEN MBUVI MD 』
+║ Save both the Session ID and Session Data to login later!
+║ Set them in Heroku config vars:
 ║ - SESSION_ID: ${id}
-║ - SESSION_DATA:The second text.
-╚════════════════════╝
-╔════════════════════◇
+║ - SESSION_DATA: (copy the Base64 string above)
+╚══════════════╝
+╔═════◇
 ║ 『••• 𝗩𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 𝗛𝗲𝗹𝗽 •••』
 ║❍ 𝐘𝐨𝐮𝐭𝐮𝐛𝐞: _youtube.com/@Rhodvick_
 ║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
 ║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
 ║❍ 𝐖𝐚𝐆𝐫𝐨𝐮𝐩: _https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P_
-║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
+║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞� l: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
 ║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: _https://www.instagram.com/_mbuvi_
 ║ ☬ ☬ ☬ ☬
-╚═════════════════════╝ 
+╚══════════════╝ 
  𒂀 MBUVI MD
 ______________________________
 
@@ -93,7 +96,7 @@ Don't Forget To Give Star⭐ To My Repo`;
       });
     } catch (err) {
       if (!res.headersSent) {
-        await res.json({ code: 'Service is Currently Unavailable.' });
+        await res.json({ code: 'Service is Currently Unavailable, you dumb fuck!' });
       }
       console.log(err);
       await removeFile('temp/' + id);
