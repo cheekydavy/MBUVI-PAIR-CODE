@@ -64,17 +64,12 @@ router.get('/', async (req, res) => {
 *MBUVI MD LOGGED 👌*
 *By MBUVI TECH 🤖_*
 ______________________________
-Session ID: ${id}
-______________________________
-Session Data (Base64): 
-${sessionDataEncoded}
-______________________________
 ╔════◇
 ║『 YOU'VE CHOSEN MBUVI MD 』
-║ Save both the Session ID and Session Data to login later!
-║ Set them in Heroku config vars:
+║ -You'll need both session id and data.
+║ -Set them in Heroku config vars:
 ║ - SESSION_ID: ${id}
-║ - SESSION_DATA: (copy the Base64 string above)
+║ - SESSION_DATA: (the long text ey...)
 ╚══════════════╝
 ╔═════◇
 ║ 『••• 𝗩𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 𝗛𝗲𝗹𝗽 •••』
