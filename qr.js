@@ -17,7 +17,7 @@ function removeFile(FilePath) {
 router.get('/', async (req, res) => {
   const randomId = makeid();
   let messageSent = false;
-  let retryAttempts = 0; // Track connection retries
+  let retryAttempts = 0;
   const sessionFolder = `./temp/${randomId}`;
   console.log(`[QR] Starting QR code generation, session ID: mbuvi~${randomId}`);
 
@@ -37,14 +37,15 @@ router.get('/', async (req, res) => {
         printQRInTerminal: false,
         logger: pino({ level: 'silent' }),
         browser: Browsers.macOS('Desktop'),
-        defaultQueryTimeoutMs: 60000, // Increased to avoid timeouts
-        connectTimeoutMs: 30000, // Ensure connection stability
+        defaultQueryTimeoutMs: 30000,
       });
 
       Qr_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds);
       Qr_Code_By_Mbuvi_Tech.ev.on('connection.update', async (s) => {
         const { connection, lastDisconnect, qr } = s;
-        console.log(`[QR] Connection update: ${connection}, ID: mbuvi~${randomId}`);
+        if (connection !== undefined) {
+          console.log(`[QR] Connection update: ${connection}, ID: mbuvi~${randomId}`);
+        }
 
         if (qr && !res.headersSent) {
           console.log(`[QR] QR code generated for mbuvi~${randomId}`);
@@ -53,14 +54,7 @@ router.get('/', async (req, res) => {
         if (connection === 'open' && !messageSent) {
           messageSent = true;
           clearTimeout(timeout);
-          console.log(`[QR] Connection opened, preparing to send messages for mbuvi~${randomId}`);
-
-          // Wait to ensure connection stability
-          await delay(2000);
-          if (Qr_Code_By_Mbuvi_Tech.ws.readyState !== 1) {
-            console.error(`[QR Error] WebSocket not open, aborting message send for mbuvi~${randomId}`);
-            return;
-          }
+          console.log(`[QR] Connection opened, sending messages for mbuvi~${randomId}`);
 
           const sessionData = {};
           if (fs.existsSync(sessionFolder)) {
@@ -76,18 +70,18 @@ router.get('/', async (req, res) => {
 
           let MBUVI_MD_TEXT = `
 ╔════════════════════◇
-║『 SESSION CONNECTED』
-║ ✨MBUVI-MD🔷
-║ ✨Mbuvi Tech🔷
+║『 *SESSION CONNECTED*』
+║ ✨*MBUVI-MD*🔷
+║ ✨*Mbuvi Tech*🔷
 ╚════════════════════╝
 ________________________
 ╔════════════════════◇
-║『 YOU'VE CHOSEN MBUVI MD 』
-║ -Set the session ID in Heroku
+║『 *YOU'VE CHOSEN MBUVI MD* 』
+║ -Set the session ID in Heroku config vars:
 ║ - SESSION_ID: mbuvi~<data>
 ╚════════════════════╝
 ╔════════════════════◇
-║ 『••• _V𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 _H𝗲𝗹𝗽 •••』
+║ 『••• �_V𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 �_H𝗲𝗹𝗽 •••』
 ║❍ 𝐘𝐨𝐮𝐭𝐮𝐛𝐞: _youtube.com/@Rhodvick_
 ║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
 ║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
@@ -103,22 +97,22 @@ Don't Forget To Give Star⭐ To My Repo
 ______________________________`;
 
           let msgAttempts = 0;
-          const maxMsgAttempts = 5; // More attempts for QR
+          const maxMsgAttempts = 5;
           let messagesSentSuccessfully = false;
           while (msgAttempts < maxMsgAttempts && !messagesSentSuccessfully) {
             try {
               console.log(`[QR] Sending session ID for mbuvi~${randomId}, attempt ${msgAttempts + 1}`);
-              await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: sessionId }, { timeout: 20000 });
+              await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: sessionId }, { timeout: 15000 });
               console.log(`[QR] Sending main text for mbuvi~${randomId}, attempt ${msgAttempts + 1}`);
-              await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT }, { timeout: 20000 });
+              await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT }, { timeout: 15000 });
               console.log(`[QR] Messages successfully sent for mbuvi~${randomId}`);
               messagesSentSuccessfully = true;
             } catch (e) {
               msgAttempts++;
-              console.error(`[QR Error] Message send attempt ${msgAttempts} failed for mbuvi~${randomId}: ${e.message}, stack: ${e.stack}`);
+              console.error(`[QR Error] Message send attempt ${msgAttempts} failed for mbuvi~${randomId}: ${e.message}`);
               if (msgAttempts < maxMsgAttempts) {
-                console.log(`[QR] Waiting 3s before retry for mbuvi~${randomId}`);
-                await delay(3000);
+                console.log(`[QR] Waiting 2s before retry for mbuvi~${randomId}`);
+                await delay(2000);
               }
             }
           }
@@ -150,7 +144,7 @@ ______________________________`;
         }
       });
     } catch (err) {
-      console.error(`[QR Error] Service failed for mbuvi~${randomId}: ${err.message}, stack: ${err.stack}`);
+      console.error(`[QR Error] Service failed for mbuvi~${randomId}: ${err.message}`);
       clearTimeout(timeout);
       await removeFile(sessionFolder);
       if (!res.headersSent) {
@@ -161,7 +155,7 @@ ______________________________`;
   try {
     await MBUVI_MD_QR_CODE();
   } catch (e) {
-    console.error(`[QR Error] Top-level failure for mbuvi~${randomId}: ${e.message}, stack: ${e.stack}`);
+    console.error(`[QR Error] Top-level failure for mbuvi~${randomId}: ${e.message}`);
   }
 });
 module.exports = router;
