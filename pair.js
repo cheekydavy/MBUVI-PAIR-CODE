@@ -70,7 +70,7 @@ ________________________
 ║『 *YOU'VE CHOSEN MBUVI MD* 』
 ║ -You'll need both session id and data.
 ║ -Set them in Heroku config vars:
-║ - SESSION_ID: ${id}
+║ - SESSION_ID: like mbuvi~
 ║ - SESSION_DATA:The second text.
 ╚════════════════════╝
 ╔════════════════════◇
