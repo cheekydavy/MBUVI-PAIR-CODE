@@ -60,18 +60,20 @@ router.get('/', async (req, res) => {
           const sessionDataEncoded = Buffer.from(sessionDataJson).toString('base64');
 
           let MBUVI_MD_TEXT = `
-*SESSION CONNECTED*
-*MBUVI MD LOGGED 👌*
-*By MBUVI TECH 🤖_*
-______________________________
-╔════◇
-║『 YOU'VE CHOSEN MBUVI MD 』
+╔════════════════════◇
+║『 *SESSION CONNECTED*』
+║ ✨*MBUVI-MD*🔷
+║ ✨*Mbuvi Tech*🔷
+╚════════════════════╝
+________________________
+╔════════════════════◇
+║『 *YOU'VE CHOSEN MBUVI MD* 』
 ║ -You'll need both session id and data.
 ║ -Set them in Heroku config vars:
 ║ - SESSION_ID: ${id}
-║ - SESSION_DATA: (the long text ey...)
-╚══════════════╝
-╔═════◇
+║ - SESSION_DATA:The second text.
+╚════════════════════╝
+╔════════════════════◇
 ║ 『••• 𝗩𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 𝗛𝗲𝗹𝗽 •••』
 ║❍ 𝐘𝐨𝐮𝐭𝐮𝐛𝐞: _youtube.com/@Rhodvick_
 ║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
@@ -80,7 +82,7 @@ ______________________________
 ║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
 ║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: _https://www.instagram.com/_mbuvi_
 ║ ☬ ☬ ☬ ☬
-╚══════════════╝ 
+╚═════════════════════╝ 
  𒂀 MBUVI MD
 ______________________________
 
