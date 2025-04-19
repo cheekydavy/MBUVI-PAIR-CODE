@@ -1,10 +1,11 @@
-function makeid(num = 15) {
-  let result = "";
-  let characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  var characters9 = characters.length;
-  for (var i = 0; i < num; i++) {
-    result += characters.charAt(Math.floor(Math.random() * characters9));
+function makeid() {
+  let length = 15;
+  let result = '';
+  let characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let charactersLength = characters.length;
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * charactersLength));
   }
-  return `mbuvi~${result}`;
+  return result; // Return plain random ID without prefix
 }
 module.exports = { makeid };
