@@ -62,13 +62,13 @@ router.get('/', async (req, res) => {
 
           let MBUVI_MD_TEXT = `
 ╔════════════════════◇
-║『 *SESSION CONNECTED*』
-║ ✨*MBUVI-MD*🔷
-║ ✨*Mbuvi Tech*🔷
+║『 SESSION CONNECTED』
+║ ✨MBUVI-MD🔷
+║ ✨Mbuvi Tech🔷
 ╚════════════════════╝
 ________________________
 ╔════════════════════◇
-║『 *YOU'VE CHOSEN MBUVI MD* 』
+║『 YOU'VE CHOSEN MBUVI MD 』
 ║ -Set the session ID in Heroku config vars:
 ║ - SESSION_ID: mbuvi~<data>
 ╚════════════════════╝
