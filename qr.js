@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
       res.status(503).send('QR generation timed out, try again later, you fuck!');
       removeFile(sessionFolder);
     }
-  }, 25000);
+  }, 30000);
 
   async function MBUVI_MD_QR_CODE() {
     try {
@@ -37,7 +37,8 @@ router.get('/', async (req, res) => {
         printQRInTerminal: false,
         logger: pino({ level: 'silent' }),
         browser: Browsers.macOS('Desktop'),
-        defaultQueryTimeoutMs: 30000,
+        defaultQueryTimeoutMs: 60000, // Increased to avoid timeouts
+        connectTimeoutMs: 30000, // Ensure connection stability
       });
 
       Qr_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds);
@@ -52,8 +53,14 @@ router.get('/', async (req, res) => {
         if (connection === 'open' && !messageSent) {
           messageSent = true;
           clearTimeout(timeout);
-          console.log(`[QR] Connection opened, sending messages for mbuvi~${randomId}`);
-          await delay(1000);
+          console.log(`[QR] Connection opened, preparing to send messages for mbuvi~${randomId}`);
+
+          // Wait to ensure connection stability
+          await delay(2000);
+          if (Qr_Code_By_Mbuvi_Tech.ws.readyState !== 1) {
+            console.error(`[QR Error] WebSocket not open, aborting message send for mbuvi~${randomId}`);
+            return;
+          }
 
           const sessionData = {};
           if (fs.existsSync(sessionFolder)) {
@@ -69,18 +76,18 @@ router.get('/', async (req, res) => {
 
           let MBUVI_MD_TEXT = `
 ╔════════════════════◇
-║『 *SESSION CONNECTED*』
-║ ✨*MBUVI-MD*🔷
-║ ✨*Mbuvi Tech*🔷
+║『 SESSION CONNECTED』
+║ ✨MBUVI-MD🔷
+║ ✨Mbuvi Tech🔷
 ╚════════════════════╝
 ________________________
 ╔════════════════════◇
-║『 *YOU'VE CHOSEN MBUVI MD* 』
-║ -Set the session ID in Heroku config vars:
+║『 YOU'VE CHOSEN MBUVI MD 』
+║ -Set the session ID in Heroku
 ║ - SESSION_ID: mbuvi~<data>
 ╚════════════════════╝
 ╔════════════════════◇
-║ 『••• �_V𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 �_H𝗲𝗹𝗽 •••』
+║ 『••• _V𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 _H𝗲𝗹𝗽 •••』
 ║❍ 𝐘𝐨𝐮𝐭𝐮𝐛𝐞: _youtube.com/@Rhodvick_
 ║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
 ║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
@@ -96,28 +103,34 @@ Don't Forget To Give Star⭐ To My Repo
 ______________________________`;
 
           let msgAttempts = 0;
-          const maxMsgAttempts = 3;
+          const maxMsgAttempts = 5; // More attempts for QR
           let messagesSentSuccessfully = false;
           while (msgAttempts < maxMsgAttempts && !messagesSentSuccessfully) {
             try {
-              await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: sessionId }, { timeout: 15000 });
-              await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT }, { timeout: 15000 });
+              console.log(`[QR] Sending session ID for mbuvi~${randomId}, attempt ${msgAttempts + 1}`);
+              await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: sessionId }, { timeout: 20000 });
+              console.log(`[QR] Sending main text for mbuvi~${randomId}, attempt ${msgAttempts + 1}`);
+              await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT }, { timeout: 20000 });
               console.log(`[QR] Messages successfully sent for mbuvi~${randomId}`);
               messagesSentSuccessfully = true;
             } catch (e) {
               msgAttempts++;
-              console.error(`[QR Error] Message send attempt ${msgAttempts} failed: ${e.message}`);
-              if (msgAttempts < maxMsgAttempts) await delay(2000);
+              console.error(`[QR Error] Message send attempt ${msgAttempts} failed for mbuvi~${randomId}: ${e.message}, stack: ${e.stack}`);
+              if (msgAttempts < maxMsgAttempts) {
+                console.log(`[QR] Waiting 3s before retry for mbuvi~${randomId}`);
+                await delay(3000);
+              }
             }
           }
           if (!messagesSentSuccessfully) {
-            console.error(`[QR Error] Failed to send messages after ${maxMsgAttempts} attempts`);
+            console.error(`[QR Error] Failed to send messages after ${maxMsgAttempts} attempts for mbuvi~${randomId}`);
           }
           try {
+            console.log(`[QR] Closing WebSocket for mbuvi~${randomId}`);
             await Qr_Code_By_Mbuvi_Tech.ws.close();
             console.log(`[QR] WebSocket closed for mbuvi~${randomId}`);
           } catch (e) {
-            console.error(`[QR Error] Failed to close WebSocket: ${e.message}`);
+            console.error(`[QR Error] Failed to close WebSocket for mbuvi~${randomId}: ${e.message}`);
           }
           removeFile(sessionFolder);
         } else if (connection === 'close' && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
@@ -125,10 +138,11 @@ ______________________________`;
           await delay(5000);
           if (!messageSent && retryAttempts < 2) {
             retryAttempts++;
+            console.log(`[QR] Retry attempt ${retryAttempts} for mbuvi~${randomId}`);
             try {
               await MBUVI_MD_QR_CODE();
             } catch (e) {
-              console.error(`[QR Error] Retry ${retryAttempts} failed: ${e.message}`);
+              console.error(`[QR Error] Retry ${retryAttempts} failed for mbuvi~${randomId}: ${e.message}`);
             }
           } else {
             console.log(`[QR] Max retries reached for mbuvi~${randomId}`);
@@ -136,7 +150,7 @@ ______________________________`;
         }
       });
     } catch (err) {
-      console.error(`[QR Error] Service failed for mbuvi~${randomId}: ${err.message}`);
+      console.error(`[QR Error] Service failed for mbuvi~${randomId}: ${err.message}, stack: ${err.stack}`);
       clearTimeout(timeout);
       await removeFile(sessionFolder);
       if (!res.headersSent) {
@@ -147,7 +161,7 @@ ______________________________`;
   try {
     await MBUVI_MD_QR_CODE();
   } catch (e) {
-    console.error(`[QR Error] Top-level failure for mbuvi~${randomId}: ${e.message}`);
+    console.error(`[QR Error] Top-level failure for mbuvi~${randomId}: ${e.message}, stack: ${e.stack}`);
   }
 });
 module.exports = router;
