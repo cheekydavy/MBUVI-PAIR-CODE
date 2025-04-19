@@ -51,20 +51,15 @@ router.get('/', async (req, res) => {
 
           let MBUVI_MD_TEXT = `
 *SESSION CONNECTED*
-*SAVAGE MD LOGGED 👌*
+*MBUVI MD LOGGED 👌*
 *By MBUVI TECH 🤖_*
-______________________________
-Session ID: ${id}
-______________________________
-Session Data (Base64): 
-${sessionDataEncoded}
 ______________________________
 ╔════◇
 ║『 YOU'VE CHOSEN MBUVI MD 』
-║ Save both the Session ID and Session Data to login later!
-║ Set them in Heroku config vars:
+║ -You'll need both session id and data.
+║ -Set them in Heroku config vars:
 ║ - SESSION_ID: ${id}
-║ - SESSION_DATA: (copy the Base64 string above)
+║ - SESSION_DATA: (The long text ey..)
 ╚══════════════╝
 ╔═════◇
 ║ 『••• 𝗩𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 𝗛𝗲𝗹𝗽 •••』
@@ -96,7 +91,7 @@ Don't Forget To Give Star⭐ To My Repo`;
       });
     } catch (err) {
       if (!res.headersSent) {
-        await res.json({ code: 'Service is Currently Unavailable, you dumb fuck!' });
+        await res.json({ code: 'Service is Currently Unavailable.' });
       }
       console.log(err);
       await removeFile('temp/' + id);
