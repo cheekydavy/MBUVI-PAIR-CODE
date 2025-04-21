@@ -7,7 +7,7 @@ const path = require('path');
 const fs = require('fs');
 let router = express.Router();
 const pino = require('pino');
-const { default: Mbuvi_Tech, useMultiFileAuthState, jidNormalizedUser, Browsers, delay, makeInMemoryStore } = require('maher-zubair-baileys');
+const { default: Mbuvi_Tech, useMultiFileAuthState, jidNormalizedUser, Browsers, delay, makeInMemoryStore } = require('@whiskeysockets/baileys');
 
 function removeFile(FilePath) {
   if (!fs.existsSync(FilePath)) return false;
@@ -35,31 +35,19 @@ router.get('/', async (req, res) => {
       let Qr_Code_By_Mbuvi_Tech = Mbuvi_Tech({
         auth: state,
         printQRInTerminal: false,
-        logger: pino({ level: 'debug' }).child({ level: 'debug' }), // More detailed logging
+        logger: pino({ level: 'debug' }).child({ level: 'debug' }), // Changed to debug for more logs
         browser: ['Windows', 'Firefox', '10.0.22631'], // Consistent browser fingerprint
         defaultQueryTimeoutMs: 90000, // Increased timeout
-        keepAliveIntervalMs: 30000, // Keep connection alive
       });
 
-      Qr_Code_By_Mbuvi_Tech.ev.on('creds.update', async () => {
-        console.log(`[QR] Credentials updated for mbuvi~${randomId}`);
-        await saveCreds();
-      });
-
+      Qr_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds);
       Qr_Code_By_Mbuvi_Tech.ev.on('connection.update', async (s) => {
-        console.log(`[QR] Connection update: ${JSON.stringify(s, null, 2)}, ID: mbuvi~${randomId}`);
+        console.log(`[QR] Connection update: ${JSON.stringify(s, null, 2)}, ID: mbuvi~${randomId}`); // Detailed logging
         const { connection, lastDisconnect, qr } = s;
 
         if (qr && !res.headersSent) {
-          console.log(`[QR] QR code generated: ${qr}`);
-          try {
-            const qrBuffer = await QRCode.toBuffer(qr);
-            console.log(`[QR] QR code buffer generated for mbuvi~${randomId}`);
-            res.end(qrBuffer);
-          } catch (e) {
-            console.error(`[QR Error] Failed to generate QR code buffer for mbuvi~${randomId}: ${e.message}`);
-            res.status(500).send('Failed to generate QR code');
-          }
+          console.log(`[QR] QR code generated: ${qr}`); // Log the QR string
+          res.end(await QRCode.toBuffer(qr));
         }
         if (connection === 'open' && !messageSent) {
           messageSent = true;
@@ -142,7 +130,6 @@ ______________________________`;
           await delay(5000);
           if (!messageSent && retryAttempts < 2) {
             retryAttempts++;
-            removeFile(sessionFolder);
             console.log(`[QR] Retry attempt ${retryAttempts} for mbuvi~${randomId}`);
             try {
               await MBUVI_MD_QR_CODE();
