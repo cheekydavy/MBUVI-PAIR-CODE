@@ -1,11 +1,11 @@
 {
-  "description": "mbuvi-session",
-  "main": "./mbuvi.js",
-  "engines": {
-    "npm": ">=9.7.2",
-    "node": ">=20.0.0"
-  },
-  "scripts": {
+    "description": "mbuvi-session",
+    "main": "./mbuvi.js",
+  "engines" : { 
+    "npm" : ">=9.7.2",
+    "node" : ">=20.0.0"
+    },
+    "scripts": {
     "start": "node mbuvi.js"
   },
   "author": "Mbuvi Tech",
@@ -16,10 +16,10 @@
     "qrcode": "^1.5.3",
     "awesome-phonenumber": "^2.64.0",
     "pino": "^8.1.0",
-    "phone": "3.1.30",
+    "phone" : "3.1.30",
     "body-parser": "^1.20.1",
     "pastebin-js": "^1.0.6",
     "express": "^4.18.1",
     "path": "^0.12.7"
-  }
+   }
 }
