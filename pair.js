@@ -5,7 +5,7 @@ const express = require('express');
 const fs = require('fs');
 let router = express.Router();
 const pino = require('pino');
-const { default: Mbuvi_Tech, useMultiFileAuthState, delay, makeCacheableSignalKeyStore, Browsers } = require('maher-zubair-baileys');
+const { default: Mbuvi_Tech, useMultiFileAuthState, delay, makeCacheableSignalKeyStore, Browsers } = require('@whiskeysockets/baileys');
 
 function removeFile(FilePath) {
   if (!fs.existsSync(FilePath)) return false;
@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
       res.status(503).send({ code: 'Pairing timed out, try again later, you fuck!' });
       removeFile(sessionFolder);
     }
-  }, 25000);
+  }, 60000); // Increased timeout to 60 seconds
 
   async function MBUVI_MD_PAIR_CODE() {
     try {
@@ -38,8 +38,9 @@ router.get('/', async (req, res) => {
         },
         printQRInTerminal: false,
         logger: pino({ level: 'fatal' }).child({ level: 'fatal' }),
-        browser: ['Chrome (Ubuntu)', 'Chrome (Linux)', 'Chrome (MacOs)'],
-        defaultQueryTimeoutMs: 30000,
+        browser: Browsers.windows('Firefox'), // More realistic browser fingerprint
+        defaultQueryTimeoutMs: 60000, // Increased timeout
+        keepAliveIntervalMs: 30000, // Keep the connection alive
       });
 
       if (!Pair_Code_By_Mbuvi_Tech.authState.creds.registered) {
@@ -53,10 +54,14 @@ router.get('/', async (req, res) => {
         }
       }
 
-      Pair_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds);
+      Pair_Code_By_Mbuvi_Tech.ev.on('creds.update', async () => {
+        console.log(`[Pair] Credentials updated for mbuvi~${randomId}`);
+        await saveCreds();
+      });
+
       Pair_Code_By_Mbuvi_Tech.ev.on('connection.update', async (s) => {
+        console.log(`[Pair] Connection update: ${JSON.stringify(s, null, 2)}, ID: mbuvi~${randomId}`);
         const { connection, lastDisconnect } = s;
-        console.log(`[Pair] Connection update: ${connection}, ID: mbuvi~${randomId}`);
 
         if (connection === 'open' && !messageSent) {
           // Send a test message to validate the session
@@ -109,7 +114,7 @@ ________________________
 ║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
 ║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
 ║❍ 𝐖𝐚𝐆𝐫𝐨𝐮𝐩: _https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P_
-║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐬𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
+║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
 ║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: _https://www.instagram.com/_mbuvi_
 ║ ☬ ☬ ☬ ☬
 ╚═════════════════════╝ 
@@ -149,7 +154,7 @@ ______________________________`;
           await delay(5000);
           if (!messageSent && retryAttempts < 2) {
             retryAttempts++;
-            removeFile(sessionFolder); // Clear session folder before retry to ensure fresh credentials
+            removeFile(sessionFolder); // Clear session folder before retry
             try {
               await MBUVI_MD_PAIR_CODE();
             } catch (e) {
