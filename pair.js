@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
       res.status(503).send({ code: 'Pairing timed out, try again later, you fuck!' });
       removeFile(sessionFolder);
     }
-  }, 60000); // Increased timeout to 60 seconds
+  }, 90000); // Increased to 90 seconds
 
   async function MBUVI_MD_PAIR_CODE() {
     try {
@@ -37,14 +37,14 @@ router.get('/', async (req, res) => {
           keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'fatal' }).child({ level: 'fatal' })),
         },
         printQRInTerminal: false,
-        logger: pino({ level: 'fatal' }).child({ level: 'fatal' }),
-        browser: Browsers.windows('Firefox'), // More realistic browser fingerprint
-        defaultQueryTimeoutMs: 60000, // Increased timeout
-        keepAliveIntervalMs: 30000, // Keep the connection alive
+        logger: pino({ level: 'debug' }).child({ level: 'debug' }), // More detailed logging
+        browser: Browsers.windows('Firefox'), // Realistic browser fingerprint
+        defaultQueryTimeoutMs: 90000, // Increased timeout
+        keepAliveIntervalMs: 30000, // Keep connection alive
       });
 
       if (!Pair_Code_By_Mbuvi_Tech.authState.creds.registered) {
-        await delay(1500);
+        await delay(2000); // Anti-bot delay
         num = num.replace(/[^0-9]/g, '');
         console.log(`[Pair] Requesting pairing code for ${num}`);
         const code = await Pair_Code_By_Mbuvi_Tech.requestPairingCode(num);
@@ -64,21 +64,6 @@ router.get('/', async (req, res) => {
         const { connection, lastDisconnect } = s;
 
         if (connection === 'open' && !messageSent) {
-          // Send a test message to validate the session
-          try {
-            await delay(1000);
-            await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: 'TEST_MESSAGE' }, { timeout: 15000 });
-            console.log(`[Pair] Test message sent successfully for mbuvi~${randomId}`);
-          } catch (e) {
-            console.error(`[Pair Error] Failed to send test message for mbuvi~${randomId}: ${e.message}`);
-            await Pair_Code_By_Mbuvi_Tech.ws.close();
-            removeFile(sessionFolder);
-            if (!res.headersSent) {
-              res.status(503).send({ code: 'Failed to validate session, try again!' });
-            }
-            return;
-          }
-
           messageSent = true;
           clearTimeout(timeout);
           console.log(`[Pair] Connection opened, sending messages for mbuvi~${randomId}`);
@@ -114,7 +99,7 @@ ________________________
 ║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
 ║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
 ║❍ 𝐖𝐚𝐆𝐫𝐨𝐮𝐩: _https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P_
-║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
+║❍ 𝐖𝐚�{C𝐡𝐚𝐧𝐧𝐞𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
 ║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: _https://www.instagram.com/_mbuvi_
 ║ ☬ ☬ ☬ ☬
 ╚═════════════════════╝ 
@@ -154,7 +139,7 @@ ______________________________`;
           await delay(5000);
           if (!messageSent && retryAttempts < 2) {
             retryAttempts++;
-            removeFile(sessionFolder); // Clear session folder before retry
+            removeFile(sessionFolder);
             try {
               await MBUVI_MD_PAIR_CODE();
             } catch (e) {
