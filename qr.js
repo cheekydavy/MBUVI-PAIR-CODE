@@ -7,7 +7,7 @@ const path = require('path');
 const fs = require('fs');
 let router = express.Router();
 const pino = require('pino');
-const { default: Mbuvi_Tech, useMultiFileAuthState, jidNormalizedUser, Browsers, delay, makeInMemoryStore, generateRegistrationId, initInMemoryKeyStore } = require('@whiskeysockets/baileys');
+const { default: Mbuvi_Tech, useMultiFileAuthState, jidNormalizedUser, Browsers, delay, makeInMemoryStore } = require('@whiskeysockets/baileys');
 
 function removeFile(FilePath) {
   if (!fs.existsSync(FilePath)) return false;
@@ -31,21 +31,10 @@ router.get('/', async (req, res) => {
 
   async function MBUVI_MD_QR_CODE() {
     try {
-      // Generate fresh session state
-      const newRegistrationId = generateRegistrationId();
-      const keyStore = initInMemoryKeyStore([]);
-      const initialState = {
-        creds: {
-          registrationId: newRegistrationId,
-          noiseKey: keyStore.noiseKeyPair,
-          identityKey: keyStore.identityKeyPair,
-          signedPreKey: keyStore.signedPreKey,
-          preKeys: {},
-        },
-        keys: keyStore,
-      };
+      // Ensure the session folder is clean before starting
+      removeFile(sessionFolder);
       fs.mkdirSync(sessionFolder, { recursive: true });
-      fs.writeFileSync(`${sessionFolder}/creds.json`, JSON.stringify(initialState.creds));
+
       const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
 
       let Qr_Code_By_Mbuvi_Tech = Mbuvi_Tech({
