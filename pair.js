@@ -5,7 +5,7 @@ const express = require('express');
 const fs = require('fs');
 let router = express.Router();
 const pino = require('pino');
-const { default: Mbuvi_Tech, useMultiFileAuthState, delay, makeCacheableSignalKeyStore, Browsers } = require('@whiskeysockets/baileys');
+const { default: Mbuvi_Tech, useMultiFileAuthState, delay, makeCacheableSignalKeyStore, Browsers } = require('maher-zubair-baileys');
 
 function removeFile(FilePath) {
   if (!fs.existsSync(FilePath)) return false;
@@ -34,11 +34,11 @@ router.get('/', async (req, res) => {
       let Pair_Code_By_Mbuvi_Tech = Mbuvi_Tech({
         auth: {
           creds: state.creds,
-          keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'fatal' }).child({ level: 'fatal' })),
+          keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'debug' }).child({ level: 'debug' })),
         },
         printQRInTerminal: false,
         logger: pino({ level: 'debug' }).child({ level: 'debug' }), // More detailed logging
-        browser: Browsers.windows('Firefox'), // Realistic browser fingerprint
+        browser: ['Windows', 'Firefox', '10.0.22631'], // Consistent browser fingerprint
         defaultQueryTimeoutMs: 90000, // Increased timeout
         keepAliveIntervalMs: 30000, // Keep connection alive
       });
@@ -99,7 +99,7 @@ ________________________
 ║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
 ║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
 ║❍ 𝐖𝐚𝐆𝐫𝐨𝐮𝐩: _https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P_
-║❍ 𝐖𝐚�{C𝐡𝐚𝐧𝐧𝐞𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
+║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐬𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
 ║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: _https://www.instagram.com/_mbuvi_
 ║ ☬ ☬ ☬ ☬
 ╚═════════════════════╝ 
@@ -139,7 +139,7 @@ ______________________________`;
           await delay(5000);
           if (!messageSent && retryAttempts < 2) {
             retryAttempts++;
-            removeFile(sessionFolder);
+            removeFile(sessionFolder); // Clear session folder before retry
             try {
               await MBUVI_MD_PAIR_CODE();
             } catch (e) {
