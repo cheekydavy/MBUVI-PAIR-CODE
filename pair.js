@@ -23,16 +23,14 @@ router.get('/', async (req, res) => {
   const timeout = setTimeout(() => {
     if (!res.headersSent) {
       console.error(`[Pair Error] Pairing timed out for mbuvi~${randomId}`);
-      res.status(503).send({ code: 'Pairing timed out, try again later!' });
+      res.status(503).send({ code: 'Pairing timed out, try again later, you fuck!' });
       removeFile(sessionFolder);
     }
   }, 25000);
 
   async function MBUVI_MD_PAIR_CODE() {
     try {
-      // Do NOT clear the session folder here; let Baileys handle session creation
       const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
-
       let Pair_Code_By_Mbuvi_Tech = Mbuvi_Tech({
         auth: {
           creds: state.creds,
@@ -40,7 +38,7 @@ router.get('/', async (req, res) => {
         },
         printQRInTerminal: false,
         logger: pino({ level: 'fatal' }).child({ level: 'fatal' }),
-        browser: Browsers.macOS('Chrome'),
+        browser: ['Chrome (Ubuntu)', 'Chrome (Linux)', 'Chrome (MacOs)'],
         defaultQueryTimeoutMs: 30000,
       });
 
@@ -56,17 +54,12 @@ router.get('/', async (req, res) => {
       }
 
       Pair_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds);
-
       Pair_Code_By_Mbuvi_Tech.ev.on('connection.update', async (s) => {
         const { connection, lastDisconnect } = s;
         console.log(`[Pair] Connection update: ${connection}, ID: mbuvi~${randomId}`);
 
         if (connection === 'open' && !messageSent) {
-          messageSent = true;
-          clearTimeout(timeout);
-          console.log(`[Pair] Connection opened for mbuvi~${randomId}`);
-
-          // Send a test message to ensure the session is functional
+          // Send a test message to validate the session
           try {
             await delay(1000);
             await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: 'TEST_MESSAGE' }, { timeout: 15000 });
@@ -81,7 +74,11 @@ router.get('/', async (req, res) => {
             return;
           }
 
-          // Session is functional; now prepare the session ID
+          messageSent = true;
+          clearTimeout(timeout);
+          console.log(`[Pair] Connection opened, sending messages for mbuvi~${randomId}`);
+          await delay(1000);
+
           const sessionData = {};
           if (fs.existsSync(sessionFolder)) {
             const files = fs.readdirSync(sessionFolder);
@@ -112,7 +109,7 @@ ________________________
 ║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
 ║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
 ║❍ 𝐖𝐚𝐆𝐫𝐨𝐮𝐩: _https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P_
-║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
+║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐬𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
 ║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: _https://www.instagram.com/_mbuvi_
 ║ ☬ ☬ ☬ ☬
 ╚═════════════════════╝ 
@@ -127,9 +124,7 @@ ______________________________`;
           let messagesSentSuccessfully = false;
           while (msgAttempts < maxMsgAttempts && !messagesSentSuccessfully) {
             try {
-              await delay(500);
               await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: sessionId }, { timeout: 15000 });
-              await delay(500);
               await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT }, { timeout: 15000 });
               console.log(`[Pair] Messages successfully sent for mbuvi~${randomId}`);
               messagesSentSuccessfully = true;
@@ -154,6 +149,7 @@ ______________________________`;
           await delay(5000);
           if (!messageSent && retryAttempts < 2) {
             retryAttempts++;
+            removeFile(sessionFolder); // Clear session folder before retry to ensure fresh credentials
             try {
               await MBUVI_MD_PAIR_CODE();
             } catch (e) {
@@ -169,7 +165,7 @@ ______________________________`;
       clearTimeout(timeout);
       await removeFile(sessionFolder);
       if (!res.headersSent) {
-        res.status(503).send({ code: 'Service Currently Unavailable!' });
+        res.status(503).send({ code: 'Service Currently Unavailable, you dumb fuck!' });
       }
     }
   }
