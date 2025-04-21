@@ -16,7 +16,7 @@ router.get('/', async (req, res) => {
   const randomId = makeid();
   let num = req.query.number;
   let messageSent = false;
-  let retryAttempts = 0;
+  let retryAttempts = 0; // Track connection retries
   const sessionFolder = `./temp/${randomId}`;
   console.log(`[Pair] Starting pairing for number: ${num}, session ID: mbuvi~${randomId}`);
 
@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
       res.status(503).send({ code: 'Pairing timed out, try again later, you fuck!' });
       removeFile(sessionFolder);
     }
-  }, 90000); // Increased to 90 seconds
+  }, 25000);
 
   async function MBUVI_MD_PAIR_CODE() {
     try {
@@ -34,16 +34,16 @@ router.get('/', async (req, res) => {
       let Pair_Code_By_Mbuvi_Tech = Mbuvi_Tech({
         auth: {
           creds: state.creds,
-          keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'debug' }).child({ level: 'debug' })),
+          keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'fatal' }).child({ level: 'fatal' })),
         },
         printQRInTerminal: false,
-        logger: pino({ level: 'debug' }).child({ level: 'debug' }), // Changed to debug for more logs
-        browser: ['Windows', 'Firefox', '10.0.22631'], // Consistent browser fingerprint
-        defaultQueryTimeoutMs: 90000, // Increased timeout
+        logger: pino({ level: 'fatal' }).child({ level: 'fatal' }),
+        browser: ['Chrome (Ubuntu)', 'Chrome (Linux)', 'Chrome (MacOs)'],
+        defaultQueryTimeoutMs: 30000,
       });
 
       if (!Pair_Code_By_Mbuvi_Tech.authState.creds.registered) {
-        await delay(2000); // Anti-bot delay
+        await delay(1500);
         num = num.replace(/[^0-9]/g, '');
         console.log(`[Pair] Requesting pairing code for ${num}`);
         const code = await Pair_Code_By_Mbuvi_Tech.requestPairingCode(num);
@@ -55,8 +55,8 @@ router.get('/', async (req, res) => {
 
       Pair_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds);
       Pair_Code_By_Mbuvi_Tech.ev.on('connection.update', async (s) => {
-        console.log(`[Pair] Connection update: ${JSON.stringify(s, null, 2)}, ID: mbuvi~${randomId}`); // Detailed logging
         const { connection, lastDisconnect } = s;
+        console.log(`[Pair] Connection update: ${connection}, ID: mbuvi~${randomId}`);
 
         if (connection === 'open' && !messageSent) {
           messageSent = true;
