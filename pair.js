@@ -26,11 +26,11 @@ router.get('/', async (req, res) => {
       res.status(503).send({ code: 'Pairing timed out, try again later!' });
       removeFile(sessionFolder);
     }
-  }, 30000);
+  }, 25000);
 
   async function MBUVI_MD_PAIR_CODE() {
     try {
-      // Ensure the session folder is clean before starting
+      // Ensure the session folder is clean to force fresh credentials
       removeFile(sessionFolder);
       fs.mkdirSync(sessionFolder, { recursive: true });
 
@@ -48,7 +48,7 @@ router.get('/', async (req, res) => {
       });
 
       if (!Pair_Code_By_Mbuvi_Tech.authState.creds.registered) {
-        await delay(1500 + Math.random() * 500); // Jitter
+        await delay(1500 + Math.random() * 500); // Simple jitter
         num = num.replace(/[^0-9]/g, '');
         console.log(`[Pair] Requesting pairing code for ${num}`);
         const code = await Pair_Code_By_Mbuvi_Tech.requestPairingCode(num);
@@ -60,42 +60,22 @@ router.get('/', async (req, res) => {
 
       Pair_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds);
 
-      // Validate session by testing message send and receive
-      let sessionValidated = false;
-      Pair_Code_By_Mbuvi_Tech.ev.on('messages.upsert', async (mek) => {
-        const msg = mek.messages[0];
-        if (msg.key.remoteJid === Pair_Code_By_Mbuvi_Tech.user.id && msg.message?.conversation === 'TEST_MESSAGE') {
-          console.log(`[Pair] Session validated: Successfully received test message for mbuvi~${randomId}`);
-          sessionValidated = true;
-        }
-      });
-
       Pair_Code_By_Mbuvi_Tech.ev.on('connection.update', async (s) => {
         const { connection, lastDisconnect } = s;
         console.log(`[Pair] Connection update: ${connection}, ID: mbuvi~${randomId}`);
 
         if (connection === 'open' && !messageSent) {
-          // Test session by sending and receiving a message
-          let testAttempts = 0;
-          const maxTestAttempts = 3;
-          while (testAttempts < maxTestAttempts && !sessionValidated) {
-            try {
-              await delay(1000 + Math.random() * 500); // Jitter
-              await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: 'TEST_MESSAGE' }, { timeout: 15000 });
-              await delay(2000); // Wait for the message to be received
-              if (sessionValidated) break;
-              testAttempts++;
-              console.log(`[Pair] Test attempt ${testAttempts} failed, retrying...`);
-            } catch (e) {
-              testAttempts++;
-              console.error(`[Pair] Test attempt ${testAttempts} failed: ${e.message}`);
-              await delay(2000 + Math.random() * 500); // Jitter
-            }
-          }
+          messageSent = true;
+          clearTimeout(timeout);
+          console.log(`[Pair] Connection opened, sending messages for mbuvi~${randomId}`);
+          await delay(1000 + Math.random() * 500); // Simple jitter
 
-          if (!sessionValidated) {
-            console.error(`[Pair Error] Session validation failed after ${maxTestAttempts} attempts for mbuvi~${randomId}`);
-            clearTimeout(timeout);
+          // Send a test message to ensure the session is functional
+          try {
+            await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: 'TEST_MESSAGE' }, { timeout: 15000 });
+            console.log(`[Pair] Test message sent successfully for mbuvi~${randomId}`);
+          } catch (e) {
+            console.error(`[Pair Error] Failed to send test message for mbuvi~${randomId}: ${e.message}`);
             await Pair_Code_By_Mbuvi_Tech.ws.close();
             removeFile(sessionFolder);
             if (!res.headersSent) {
@@ -103,11 +83,6 @@ router.get('/', async (req, res) => {
             }
             return;
           }
-
-          messageSent = true;
-          clearTimeout(timeout);
-          console.log(`[Pair] Connection opened, sending messages for mbuvi~${randomId}`);
-          await delay(1000 + Math.random() * 500); // Jitter
 
           const sessionData = {};
           if (fs.existsSync(sessionFolder)) {
@@ -140,7 +115,7 @@ ________________________
 ║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
 ║❍ 𝐖𝐚𝐆𝐫𝐨𝐮𝐩: _https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P_
 ║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐬𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
-║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: _https://www.instagram.com/_mbuvi_
+║❍ 𝐈𝐧𝐬𝐭𝐚� g𝐫𝐚𝐦: _https://www.instagram.com/_mbuvi_
 ║ ☬ ☬ ☬ ☬
 ╚═════════════════════╝ 
  𒂀 MBUVI MD
@@ -154,16 +129,16 @@ ______________________________`;
           let messagesSentSuccessfully = false;
           while (msgAttempts < maxMsgAttempts && !messagesSentSuccessfully) {
             try {
-              await delay(500 + Math.random() * 500); // Jitter
+              await delay(500 + Math.random() * 500); // Simple jitter
               await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: sessionId }, { timeout: 15000 });
-              await delay(500 + Math.random() * 500); // Jitter
+              await delay(500 + Math.random() * 500); // Simple jitter
               await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT }, { timeout: 15000 });
               console.log(`[Pair] Messages successfully sent for mbuvi~${randomId}`);
               messagesSentSuccessfully = true;
             } catch (e) {
               msgAttempts++;
               console.error(`[Pair Error] Message send attempt ${msgAttempts} failed: ${e.message}`);
-              if (msgAttempts < maxMsgAttempts) await delay(2000 + Math.random() * 500); // Jitter
+              if (msgAttempts < maxMsgAttempts) await delay(2000);
             }
           }
           if (!messagesSentSuccessfully) {
@@ -178,7 +153,7 @@ ______________________________`;
           removeFile(sessionFolder);
         } else if (connection === 'close' && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
           console.log(`[Pair] Connection closed, retrying for mbuvi~${randomId}`);
-          await delay(5000 + Math.random() * 1000); // Jitter
+          await delay(5000 + Math.random() * 1000); // Simple jitter
           if (!messageSent && retryAttempts < 2) {
             retryAttempts++;
             try {
