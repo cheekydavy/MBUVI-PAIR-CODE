@@ -30,10 +30,7 @@ router.get('/', async (req, res) => {
 
   async function MBUVI_MD_PAIR_CODE() {
     try {
-      // Ensure the session folder is clean to force fresh credentials
-      removeFile(sessionFolder);
-      fs.mkdirSync(sessionFolder, { recursive: true });
-
+      // Do NOT clear the session folder here; let Baileys handle session creation
       const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
 
       let Pair_Code_By_Mbuvi_Tech = Mbuvi_Tech({
@@ -48,7 +45,7 @@ router.get('/', async (req, res) => {
       });
 
       if (!Pair_Code_By_Mbuvi_Tech.authState.creds.registered) {
-        await delay(1500 + Math.random() * 500); // Simple jitter
+        await delay(1500);
         num = num.replace(/[^0-9]/g, '');
         console.log(`[Pair] Requesting pairing code for ${num}`);
         const code = await Pair_Code_By_Mbuvi_Tech.requestPairingCode(num);
@@ -67,11 +64,11 @@ router.get('/', async (req, res) => {
         if (connection === 'open' && !messageSent) {
           messageSent = true;
           clearTimeout(timeout);
-          console.log(`[Pair] Connection opened, sending messages for mbuvi~${randomId}`);
-          await delay(1000 + Math.random() * 500); // Simple jitter
+          console.log(`[Pair] Connection opened for mbuvi~${randomId}`);
 
           // Send a test message to ensure the session is functional
           try {
+            await delay(1000);
             await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: 'TEST_MESSAGE' }, { timeout: 15000 });
             console.log(`[Pair] Test message sent successfully for mbuvi~${randomId}`);
           } catch (e) {
@@ -84,6 +81,7 @@ router.get('/', async (req, res) => {
             return;
           }
 
+          // Session is functional; now prepare the session ID
           const sessionData = {};
           if (fs.existsSync(sessionFolder)) {
             const files = fs.readdirSync(sessionFolder);
@@ -114,8 +112,8 @@ ________________________
 ║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
 ║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
 ║❍ 𝐖𝐚𝐆𝐫𝐨𝐮𝐩: _https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P_
-║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐬𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
-║❍ 𝐈𝐧𝐬𝐭𝐚� g𝐫𝐚𝐦: _https://www.instagram.com/_mbuvi_
+║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
+║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: _https://www.instagram.com/_mbuvi_
 ║ ☬ ☬ ☬ ☬
 ╚═════════════════════╝ 
  𒂀 MBUVI MD
@@ -129,9 +127,9 @@ ______________________________`;
           let messagesSentSuccessfully = false;
           while (msgAttempts < maxMsgAttempts && !messagesSentSuccessfully) {
             try {
-              await delay(500 + Math.random() * 500); // Simple jitter
+              await delay(500);
               await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: sessionId }, { timeout: 15000 });
-              await delay(500 + Math.random() * 500); // Simple jitter
+              await delay(500);
               await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT }, { timeout: 15000 });
               console.log(`[Pair] Messages successfully sent for mbuvi~${randomId}`);
               messagesSentSuccessfully = true;
@@ -153,7 +151,7 @@ ______________________________`;
           removeFile(sessionFolder);
         } else if (connection === 'close' && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
           console.log(`[Pair] Connection closed, retrying for mbuvi~${randomId}`);
-          await delay(5000 + Math.random() * 1000); // Simple jitter
+          await delay(5000);
           if (!messageSent && retryAttempts < 2) {
             retryAttempts++;
             try {
