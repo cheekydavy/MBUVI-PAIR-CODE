@@ -5,7 +5,7 @@ const express = require('express');
 const fs = require('fs');
 let router = express.Router();
 const pino = require('pino');
-const { default: Mbuvi_Tech, useMultiFileAuthState, delay, makeCacheableSignalKeyStore, Browsers, generateRegistrationId, initInMemoryKeyStore } = require('maher-zubair-baileys');
+const { default: Mbuvi_Tech, useMultiFileAuthState, delay, makeCacheableSignalKeyStore, Browsers } = require('maher-zubair-baileys');
 
 function removeFile(FilePath) {
   if (!fs.existsSync(FilePath)) return false;
@@ -30,21 +30,10 @@ router.get('/', async (req, res) => {
 
   async function MBUVI_MD_PAIR_CODE() {
     try {
-      // Generate fresh session state
-      const newRegistrationId = generateRegistrationId();
-      const keyStore = initInMemoryKeyStore([]);
-      const initialState = {
-        creds: {
-          registrationId: newRegistrationId,
-          noiseKey: keyStore.noiseKeyPair,
-          identityKey: keyStore.identityKeyPair,
-          signedPreKey: keyStore.signedPreKey,
-          preKeys: {},
-        },
-        keys: keyStore,
-      };
+      // Ensure the session folder is clean before starting
+      removeFile(sessionFolder);
       fs.mkdirSync(sessionFolder, { recursive: true });
-      fs.writeFileSync(`${sessionFolder}/creds.json`, JSON.stringify(initialState.creds));
+
       const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
 
       let Pair_Code_By_Mbuvi_Tech = Mbuvi_Tech({
