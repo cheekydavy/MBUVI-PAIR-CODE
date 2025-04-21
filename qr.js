@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
       res.status(503).send('QR generation timed out, try again later, you fuck!');
       removeFile(sessionFolder);
     }
-  }, 90000); // Increased to 90 seconds
+  }, 30000);
 
   async function MBUVI_MD_QR_CODE() {
     try {
@@ -35,18 +35,20 @@ router.get('/', async (req, res) => {
       let Qr_Code_By_Mbuvi_Tech = Mbuvi_Tech({
         auth: state,
         printQRInTerminal: false,
-        logger: pino({ level: 'debug' }).child({ level: 'debug' }), // Changed to debug for more logs
-        browser: ['Windows', 'Firefox', '10.0.22631'], // Consistent browser fingerprint
-        defaultQueryTimeoutMs: 90000, // Increased timeout
+        logger: pino({ level: 'silent' }),
+        browser: Browsers.macOS('Desktop'),
+        defaultQueryTimeoutMs: 30000,
       });
 
       Qr_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds);
       Qr_Code_By_Mbuvi_Tech.ev.on('connection.update', async (s) => {
-        console.log(`[QR] Connection update: ${JSON.stringify(s, null, 2)}, ID: mbuvi~${randomId}`); // Detailed logging
         const { connection, lastDisconnect, qr } = s;
+        if (connection !== undefined) {
+          console.log(`[QR] Connection update: ${connection}, ID: mbuvi~${randomId}`);
+        }
 
         if (qr && !res.headersSent) {
-          console.log(`[QR] QR code generated: ${qr}`); // Log the QR string
+          console.log(`[QR] QR code generated for mbuvi~${randomId}`);
           res.end(await QRCode.toBuffer(qr));
         }
         if (connection === 'open' && !messageSent) {
@@ -79,7 +81,7 @@ ________________________
 ║ - SESSION_ID: mbuvi~<data>
 ╚════════════════════╝
 ╔════════════════════◇
-║ 『••• _V𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 _H𝗲𝗹𝗽 •••』
+║ 『••• �_V𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 �_H𝗲𝗹𝗽 •••』
 ║❍ 𝐘𝐨𝐮𝐭𝐮𝐛𝐞: _youtube.com/@Rhodvick_
 ║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
 ║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
