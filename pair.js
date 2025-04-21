@@ -37,10 +37,9 @@ router.get('/', async (req, res) => {
           keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'debug' }).child({ level: 'debug' })),
         },
         printQRInTerminal: false,
-        logger: pino({ level: 'debug' }).child({ level: 'debug' }), // More detailed logging
+        logger: pino({ level: 'debug' }).child({ level: 'debug' }), // Changed to debug for more logs
         browser: ['Windows', 'Firefox', '10.0.22631'], // Consistent browser fingerprint
         defaultQueryTimeoutMs: 90000, // Increased timeout
-        keepAliveIntervalMs: 30000, // Keep connection alive
       });
 
       if (!Pair_Code_By_Mbuvi_Tech.authState.creds.registered) {
@@ -54,13 +53,9 @@ router.get('/', async (req, res) => {
         }
       }
 
-      Pair_Code_By_Mbuvi_Tech.ev.on('creds.update', async () => {
-        console.log(`[Pair] Credentials updated for mbuvi~${randomId}`);
-        await saveCreds();
-      });
-
+      Pair_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds);
       Pair_Code_By_Mbuvi_Tech.ev.on('connection.update', async (s) => {
-        console.log(`[Pair] Connection update: ${JSON.stringify(s, null, 2)}, ID: mbuvi~${randomId}`);
+        console.log(`[Pair] Connection update: ${JSON.stringify(s, null, 2)}, ID: mbuvi~${randomId}`); // Detailed logging
         const { connection, lastDisconnect } = s;
 
         if (connection === 'open' && !messageSent) {
@@ -139,7 +134,6 @@ ______________________________`;
           await delay(5000);
           if (!messageSent && retryAttempts < 2) {
             retryAttempts++;
-            removeFile(sessionFolder); // Clear session folder before retry
             try {
               await MBUVI_MD_PAIR_CODE();
             } catch (e) {
