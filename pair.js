@@ -5,7 +5,7 @@ const express = require('express');
 const fs = require('fs');
 let router = express.Router();
 const pino = require('pino');
-const { default: Mbuvi_Tech, useMultiFileAuthState, delay, makeCacheableSignalKeyStore, Browsers } = require('maher-zubair-baileys');
+const { default: Mbuvi_Tech, useMultiFileAuthState, delay, makeCacheableSignalKeyStore, Browsers, generateRegistrationId, initInMemoryKeyStore } = require('maher-zubair-baileys');
 
 function removeFile(FilePath) {
   if (!fs.existsSync(FilePath)) return false;
@@ -16,21 +16,37 @@ router.get('/', async (req, res) => {
   const randomId = makeid();
   let num = req.query.number;
   let messageSent = false;
-  let retryAttempts = 0; // Track connection retries
+  let retryAttempts = 0;
   const sessionFolder = `./temp/${randomId}`;
   console.log(`[Pair] Starting pairing for number: ${num}, session ID: mbuvi~${randomId}`);
 
   const timeout = setTimeout(() => {
     if (!res.headersSent) {
       console.error(`[Pair Error] Pairing timed out for mbuvi~${randomId}`);
-      res.status(503).send({ code: 'Pairing timed out, try again later, you fuck!' });
+      res.status(503).send({ code: 'Pairing timed out, try again later!' });
       removeFile(sessionFolder);
     }
-  }, 25000);
+  }, 30000);
 
   async function MBUVI_MD_PAIR_CODE() {
     try {
+      // Generate fresh session state
+      const newRegistrationId = generateRegistrationId();
+      const keyStore = initInMemoryKeyStore([]);
+      const initialState = {
+        creds: {
+          registrationId: newRegistrationId,
+          noiseKey: keyStore.noiseKeyPair,
+          identityKey: keyStore.identityKeyPair,
+          signedPreKey: keyStore.signedPreKey,
+          preKeys: {},
+        },
+        keys: keyStore,
+      };
+      fs.mkdirSync(sessionFolder, { recursive: true });
+      fs.writeFileSync(`${sessionFolder}/creds.json`, JSON.stringify(initialState.creds));
       const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
+
       let Pair_Code_By_Mbuvi_Tech = Mbuvi_Tech({
         auth: {
           creds: state.creds,
@@ -38,12 +54,12 @@ router.get('/', async (req, res) => {
         },
         printQRInTerminal: false,
         logger: pino({ level: 'fatal' }).child({ level: 'fatal' }),
-        browser: ['Chrome (Ubuntu)', 'Chrome (Linux)', 'Chrome (MacOs)'],
+        browser: Browsers.macOS('Chrome'),
         defaultQueryTimeoutMs: 30000,
       });
 
       if (!Pair_Code_By_Mbuvi_Tech.authState.creds.registered) {
-        await delay(1500);
+        await delay(1500 + Math.random() * 500); // Jitter
         num = num.replace(/[^0-9]/g, '');
         console.log(`[Pair] Requesting pairing code for ${num}`);
         const code = await Pair_Code_By_Mbuvi_Tech.requestPairingCode(num);
@@ -54,15 +70,55 @@ router.get('/', async (req, res) => {
       }
 
       Pair_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds);
+
+      // Validate session by testing message send and receive
+      let sessionValidated = false;
+      Pair_Code_By_Mbuvi_Tech.ev.on('messages.upsert', async (mek) => {
+        const msg = mek.messages[0];
+        if (msg.key.remoteJid === Pair_Code_By_Mbuvi_Tech.user.id && msg.message?.conversation === 'TEST_MESSAGE') {
+          console.log(`[Pair] Session validated: Successfully received test message for mbuvi~${randomId}`);
+          sessionValidated = true;
+        }
+      });
+
       Pair_Code_By_Mbuvi_Tech.ev.on('connection.update', async (s) => {
         const { connection, lastDisconnect } = s;
         console.log(`[Pair] Connection update: ${connection}, ID: mbuvi~${randomId}`);
 
         if (connection === 'open' && !messageSent) {
+          // Test session by sending and receiving a message
+          let testAttempts = 0;
+          const maxTestAttempts = 3;
+          while (testAttempts < maxTestAttempts && !sessionValidated) {
+            try {
+              await delay(1000 + Math.random() * 500); // Jitter
+              await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: 'TEST_MESSAGE' }, { timeout: 15000 });
+              await delay(2000); // Wait for the message to be received
+              if (sessionValidated) break;
+              testAttempts++;
+              console.log(`[Pair] Test attempt ${testAttempts} failed, retrying...`);
+            } catch (e) {
+              testAttempts++;
+              console.error(`[Pair] Test attempt ${testAttempts} failed: ${e.message}`);
+              await delay(2000 + Math.random() * 500); // Jitter
+            }
+          }
+
+          if (!sessionValidated) {
+            console.error(`[Pair Error] Session validation failed after ${maxTestAttempts} attempts for mbuvi~${randomId}`);
+            clearTimeout(timeout);
+            await Pair_Code_By_Mbuvi_Tech.ws.close();
+            removeFile(sessionFolder);
+            if (!res.headersSent) {
+              res.status(503).send({ code: 'Failed to validate session, try again!' });
+            }
+            return;
+          }
+
           messageSent = true;
           clearTimeout(timeout);
           console.log(`[Pair] Connection opened, sending messages for mbuvi~${randomId}`);
-          await delay(1000);
+          await delay(1000 + Math.random() * 500); // Jitter
 
           const sessionData = {};
           if (fs.existsSync(sessionFolder)) {
@@ -109,14 +165,16 @@ ______________________________`;
           let messagesSentSuccessfully = false;
           while (msgAttempts < maxMsgAttempts && !messagesSentSuccessfully) {
             try {
+              await delay(500 + Math.random() * 500); // Jitter
               await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: sessionId }, { timeout: 15000 });
+              await delay(500 + Math.random() * 500); // Jitter
               await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT }, { timeout: 15000 });
               console.log(`[Pair] Messages successfully sent for mbuvi~${randomId}`);
               messagesSentSuccessfully = true;
             } catch (e) {
               msgAttempts++;
               console.error(`[Pair Error] Message send attempt ${msgAttempts} failed: ${e.message}`);
-              if (msgAttempts < maxMsgAttempts) await delay(2000);
+              if (msgAttempts < maxMsgAttempts) await delay(2000 + Math.random() * 500); // Jitter
             }
           }
           if (!messagesSentSuccessfully) {
@@ -131,7 +189,7 @@ ______________________________`;
           removeFile(sessionFolder);
         } else if (connection === 'close' && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
           console.log(`[Pair] Connection closed, retrying for mbuvi~${randomId}`);
-          await delay(5000);
+          await delay(5000 + Math.random() * 1000); // Jitter
           if (!messageSent && retryAttempts < 2) {
             retryAttempts++;
             try {
@@ -149,7 +207,7 @@ ______________________________`;
       clearTimeout(timeout);
       await removeFile(sessionFolder);
       if (!res.headersSent) {
-        res.status(503).send({ code: 'Service Currently Unavailable, you dumb fuck!' });
+        res.status(503).send({ code: 'Service Currently Unavailable!' });
       }
     }
   }
