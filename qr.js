@@ -31,10 +31,7 @@ router.get('/', async (req, res) => {
 
   async function MBUVI_MD_QR_CODE() {
     try {
-      // Ensure the session folder is clean to force fresh credentials
-      removeFile(sessionFolder);
-      fs.mkdirSync(sessionFolder, { recursive: true });
-
+      // Do NOT clear the session folder here; let Baileys handle session creation
       const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
 
       let Qr_Code_By_Mbuvi_Tech = Mbuvi_Tech({
@@ -60,11 +57,11 @@ router.get('/', async (req, res) => {
         if (connection === 'open' && !messageSent) {
           messageSent = true;
           clearTimeout(timeout);
-          console.log(`[QR] Connection opened, sending messages for mbuvi~${randomId}`);
+          console.log(`[QR] Connection opened for mbuvi~${randomId}`);
 
           // Send a test message to ensure the session is functional
           try {
-            await delay(1000 + Math.random() * 500); // Simple jitter
+            await delay(1000);
             await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: 'TEST_MESSAGE' }, { timeout: 15000 });
             console.log(`[QR] Test message sent successfully for mbuvi~${randomId}`);
           } catch (e) {
@@ -107,7 +104,7 @@ ________________________
 ║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
 ║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
 ║❍ 𝐖𝐚𝐆𝐫𝐨𝐮𝐩: _https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P_
-║❍ 𝐖𝐚�{C𝐡𝐚𝐧𝐧𝐞𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
+║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
 ║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: _https://www.instagram.com/_mbuvi_
 ║ ☬ ☬ ☬ ☬
 ╚═════════════════════╝ 
@@ -123,10 +120,10 @@ ______________________________`;
           while (msgAttempts < maxMsgAttempts && !messagesSentSuccessfully) {
             try {
               console.log(`[QR] Sending session ID for mbuvi~${randomId}, attempt ${msgAttempts + 1}`);
-              await delay(500 + Math.random() * 500); // Simple jitter
+              await delay(500);
               await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: sessionId }, { timeout: 15000 });
               console.log(`[QR] Sending main text for mbuvi~${randomId}, attempt ${msgAttempts + 1}`);
-              await delay(500 + Math.random() * 500); // Simple jitter
+              await delay(500);
               await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT }, { timeout: 15000 });
               console.log(`[QR] Messages successfully sent for mbuvi~${randomId}`);
               messagesSentSuccessfully = true;
@@ -152,7 +149,7 @@ ______________________________`;
           removeFile(sessionFolder);
         } else if (connection === 'close' && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
           console.log(`[QR] Connection closed, retrying for mbuvi~${randomId}`);
-          await delay(5000 + Math.random() * 1000); // Simple jitter
+          await delay(5000);
           if (!messageSent && retryAttempts < 2) {
             retryAttempts++;
             console.log(`[QR] Retry attempt ${retryAttempts} for mbuvi~${randomId}`);
