@@ -24,16 +24,14 @@ router.get('/', async (req, res) => {
   const timeout = setTimeout(() => {
     if (!res.headersSent) {
       console.error(`[QR Error] QR generation timed out for mbuvi~${randomId}`);
-      res.status(503).send('QR generation timed out, try again later!');
+      res.status(503).send('QR generation timed out, try again later, you fuck!');
       removeFile(sessionFolder);
     }
   }, 30000);
 
   async function MBUVI_MD_QR_CODE() {
     try {
-      // Do NOT clear the session folder here; let Baileys handle session creation
       const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
-
       let Qr_Code_By_Mbuvi_Tech = Mbuvi_Tech({
         auth: state,
         printQRInTerminal: false,
@@ -43,7 +41,6 @@ router.get('/', async (req, res) => {
       });
 
       Qr_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds);
-
       Qr_Code_By_Mbuvi_Tech.ev.on('connection.update', async (s) => {
         const { connection, lastDisconnect, qr } = s;
         if (connection !== undefined) {
@@ -55,11 +52,7 @@ router.get('/', async (req, res) => {
           res.end(await QRCode.toBuffer(qr));
         }
         if (connection === 'open' && !messageSent) {
-          messageSent = true;
-          clearTimeout(timeout);
-          console.log(`[QR] Connection opened for mbuvi~${randomId}`);
-
-          // Send a test message to ensure the session is functional
+          // Send a test message to validate the session
           try {
             await delay(1000);
             await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: 'TEST_MESSAGE' }, { timeout: 15000 });
@@ -73,6 +66,10 @@ router.get('/', async (req, res) => {
             }
             return;
           }
+
+          messageSent = true;
+          clearTimeout(timeout);
+          console.log(`[QR] Connection opened, sending messages for mbuvi~${randomId}`);
 
           const sessionData = {};
           if (fs.existsSync(sessionFolder)) {
@@ -120,10 +117,8 @@ ______________________________`;
           while (msgAttempts < maxMsgAttempts && !messagesSentSuccessfully) {
             try {
               console.log(`[QR] Sending session ID for mbuvi~${randomId}, attempt ${msgAttempts + 1}`);
-              await delay(500);
               await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: sessionId }, { timeout: 15000 });
               console.log(`[QR] Sending main text for mbuvi~${randomId}, attempt ${msgAttempts + 1}`);
-              await delay(500);
               await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT }, { timeout: 15000 });
               console.log(`[QR] Messages successfully sent for mbuvi~${randomId}`);
               messagesSentSuccessfully = true;
@@ -152,6 +147,7 @@ ______________________________`;
           await delay(5000);
           if (!messageSent && retryAttempts < 2) {
             retryAttempts++;
+            removeFile(sessionFolder); // Clear session folder before retry to ensure fresh credentials
             console.log(`[QR] Retry attempt ${retryAttempts} for mbuvi~${randomId}`);
             try {
               await MBUVI_MD_QR_CODE();
@@ -168,7 +164,7 @@ ______________________________`;
       clearTimeout(timeout);
       await removeFile(sessionFolder);
       if (!res.headersSent) {
-        res.status(503).send('Service Currently Unavailable!');
+        res.status(503).send('Service Currently Unavailable, you dumb fuck!');
       }
     }
   }
