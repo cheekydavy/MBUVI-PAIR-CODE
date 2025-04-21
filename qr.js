@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
       res.status(503).send('QR generation timed out, try again later, you fuck!');
       removeFile(sessionFolder);
     }
-  }, 60000); // Increased timeout to 60 seconds
+  }, 90000); // Increased to 90 seconds
 
   async function MBUVI_MD_QR_CODE() {
     try {
@@ -35,10 +35,10 @@ router.get('/', async (req, res) => {
       let Qr_Code_By_Mbuvi_Tech = Mbuvi_Tech({
         auth: state,
         printQRInTerminal: false,
-        logger: pino({ level: 'silent' }),
-        browser: Browsers.windows('Firefox'), // More realistic browser fingerprint
-        defaultQueryTimeoutMs: 60000, // Increased timeout
-        keepAliveIntervalMs: 30000, // Keep the connection alive
+        logger: pino({ level: 'debug' }).child({ level: 'debug' }), // More detailed logging
+        browser: Browsers.windows('Firefox'), // Realistic browser fingerprint
+        defaultQueryTimeoutMs: 90000, // Increased timeout
+        keepAliveIntervalMs: 30000, // Keep connection alive
       });
 
       Qr_Code_By_Mbuvi_Tech.ev.on('creds.update', async () => {
@@ -62,21 +62,6 @@ router.get('/', async (req, res) => {
           }
         }
         if (connection === 'open' && !messageSent) {
-          // Send a test message to validate the session
-          try {
-            await delay(1000);
-            await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: 'TEST_MESSAGE' }, { timeout: 15000 });
-            console.log(`[QR] Test message sent successfully for mbuvi~${randomId}`);
-          } catch (e) {
-            console.error(`[QR Error] Failed to send test message for mbuvi~${randomId}: ${e.message}`);
-            await Qr_Code_By_Mbuvi_Tech.ws.close();
-            removeFile(sessionFolder);
-            if (!res.headersSent) {
-              res.status(503).send('Failed to validate session, try again!');
-            }
-            return;
-          }
-
           messageSent = true;
           clearTimeout(timeout);
           console.log(`[QR] Connection opened, sending messages for mbuvi~${randomId}`);
@@ -111,8 +96,8 @@ ________________________
 ║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
 ║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
 ║❍ 𝐖𝐚𝐆𝐫𝐨𝐮𝐩: _https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P_
-║❍ 𝐖𝐚�{C𝐡𝐚𝐧𝐧𝐞𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
-║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: _https://www.instagram.com/_mbuvi_
+║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
+║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫�{a𝐦: _https://www.instagram.com/_mbuvi_
 ║ ☬ ☬ ☬ ☬
 ╚═════════════════════╝ 
  𒂀 MBUVI MD
@@ -157,7 +142,7 @@ ______________________________`;
           await delay(5000);
           if (!messageSent && retryAttempts < 2) {
             retryAttempts++;
-            removeFile(sessionFolder); // Clear session folder before retry
+            removeFile(sessionFolder);
             console.log(`[QR] Retry attempt ${retryAttempts} for mbuvi~${randomId}`);
             try {
               await MBUVI_MD_QR_CODE();
