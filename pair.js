@@ -1,18 +1,19 @@
 const PastebinAPI = require('pastebin-js'),
-pastebin = new PastebinAPI('EMWTMkQAVfJa9kM-MRUrxd5Oku1U7pgL')
-const {makeid} = require('./id');
+pastebin = new PastebinAPI('EMWTMkQAVfJa9kM-MRUrxd5Oku1U7pgL');
+const { makeid } = require('./id');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-let router = express.Router()
+let router = express.Router();
 const pino = require("pino");
 const {
-    default: Mbuvi_Tech,
+    default: makeWASocket,
     useMultiFileAuthState,
     delay,
     makeCacheableSignalKeyStore,
-    Browsers
-} = require("maher-zubair-baileys");
+    DisconnectReason,
+    fetchLatestBaileysVersion
+} = require("baileys-elite");
 
 function removeFile(FilePath) {
     if (!fs.existsSync(FilePath)) return false;
@@ -22,32 +23,32 @@ function removeFile(FilePath) {
 router.get('/', async (req, res) => {
     const id = makeid();
     let num = req.query.number;
-    async function MBUVI_MD_PAIR_CODE() {
-        // Ensure temp directory exists
-        const tempDir = path.join(__dirname, 'temp', id);
-        if (!fs.existsSync(tempDir)) {
-            fs.mkdirSync(tempDir, { recursive: true });
-        }
 
-        const {
-            state,
-            saveCreds
-        } = await useMultiFileAuthState(tempDir);
+    async function MBUVI_MD_PAIR_CODE() {
+        const tempDir = path.join(__dirname, 'temp', id);
+        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+        const { state, saveCreds } = await useMultiFileAuthState(tempDir);
+        const { version } = await fetchLatestBaileysVersion();
+
         try {
-            let Pair_Code_By_Mbuvi_Tech = Mbuvi_Tech({
+            const sock = makeWASocket({
+                version,
                 auth: {
                     creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, pino({level: "fatal"}).child({level: "fatal"})),
+                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }))
                 },
-                printQRInTerminal: false,
-                logger: pino({level: "fatal"}).child({level: "fatal"}),
-                browser: ["Chrome (Ubuntu)", "Chrome (Linux)", "Chrome (MacOs)"]
+                logger: pino({ level: "fatal" }),
+                browser: ["Chrome (Ubuntu)", "Chrome", "20.0"]
             });
 
-            if (!Pair_Code_By_Mbuvi_Tech.authState.creds.registered) {
+            sock.ev.on('creds.update', saveCreds);
+
+            if (!sock.authState.creds.registered) {
                 await delay(1500);
-                num = num.replace(/[^0-9]/g,'');
-                const code = await Pair_Code_By_Mbuvi_Tech.requestPairingCode(num);
+                num = num.replace(/[^0-9]/g, '');
+                const code = await sock.requestPairingCode(num);
+
                 if (!res.headersSent) {
                     await res.send({ code });
                 }
@@ -57,20 +58,17 @@ router.get('/', async (req, res) => {
                 }
             }
 
-            Pair_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds);
-            Pair_Code_By_Mbuvi_Tech.ev.on("connection.update", async (s) => {
-                const {
-                    connection,
-                    lastDisconnect
-                } = s;
-                if (connection == "open") {
+            sock.ev.on("connection.update", async (s) => {
+                const { connection, lastDisconnect } = s;
+
+                if (connection === "open") {
                     await delay(5000);
                     const credsPath = path.join(tempDir, 'creds.json');
-                    // Check if creds.json exists before reading
+
                     if (!fs.existsSync(credsPath)) {
-                        console.log(`Creds file not found at ${credsPath}, skipping session send`);
-                        await Pair_Code_By_Mbuvi_Tech.ws.close();
-                        await removeFile(tempDir);
+                        console.log(`Creds file not found, skipping session send`);
+                        await sock.ws.close();
+                        removeFile(tempDir);
                         return;
                     }
 
@@ -79,14 +77,14 @@ router.get('/', async (req, res) => {
                         data = fs.readFileSync(credsPath);
                     } catch (err) {
                         console.log(`Failed to read creds.json: ${err}`);
-                        await Pair_Code_By_Mbuvi_Tech.ws.close();
-                        await removeFile(tempDir);
+                        await sock.ws.close();
+                        removeFile(tempDir);
                         return;
                     }
 
                     await delay(800);
                     let b64data = Buffer.from(data).toString('base64');
-                    let session = await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: '' + b64data });
+                    let session = await sock.sendMessage(sock.user.id, { text: '' + b64data });
 
                     let MBUVI_MD_TEXT = `
 ╔════════════════════◇
@@ -105,7 +103,7 @@ ________________________
 ║❍ 𝐘𝐨𝐮𝐭𝐮𝐛𝐞: _youtube.com/@Rhodvick_
 ║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
 ║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
-║❍ 𝐖𝐚𝐆�{r𝐨𝐮𝐩: _https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P_
+║❍ 𝐖𝐚𝐆𝐫𝐨𝐮𝐩: _https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P_
 ║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐬𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
 ║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: _https://www.instagram.com/_mbuvi_
 ║ ☬ ☬ ☬ ☬
@@ -116,26 +114,30 @@ ______________________________
 Don't Forget To Give Star⭐ To My Repo
 ______________________________`;
 
-                    await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT }, { quoted: session });
+                    await sock.sendMessage(sock.user.id, { text: MBUVI_MD_TEXT }, { quoted: session });
 
                     await delay(100);
-                    Pair_Code_By_Mbuvi_Tech.authState.creds.registered = true;
+                    sock.authState.creds.registered = true;
                     await saveCreds();
-                    await Pair_Code_By_Mbuvi_Tech.ws.close();
-                    await removeFile(tempDir);
-                } else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
+                    await sock.ws.close();
+                    removeFile(tempDir);
+                } else if (
+                    connection === "close" &&
+                    lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
+                ) {
                     await delay(10000);
                     MBUVI_MD_PAIR_CODE();
                 }
             });
         } catch (err) {
             console.log(`Service error: ${err}`);
-            await removeFile(tempDir);
+            removeFile(tempDir);
             if (!res.headersSent) {
                 await res.send({ code: "Service Currently Unavailable" });
             }
         }
     }
+
     return await MBUVI_MD_PAIR_CODE();
 });
 
