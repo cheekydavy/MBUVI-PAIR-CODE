@@ -1,18 +1,19 @@
-const PastebinAPI = require('pastebin-js'),
-pastebin = new PastebinAPI('EMWTMkQAVfJa9kM-MRUrxd5Oku1U7pgL')
-const {makeid} = require('./id');
+const PastebinAPI = require('pastebin-js');
+const pastebin = new PastebinAPI('EMWTMkQAVfJa9kM-MRUrxd5Oku1U7pgL');
+const { makeid } = require('./id');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-let router = express.Router()
-const pino = require("pino");
+const pino = require('pino');
 const {
     default: Mbuvi_Tech,
     useMultiFileAuthState,
     delay,
     makeCacheableSignalKeyStore,
     Browsers
-} = require("maher-zubair-baileys");
+} = require('baileys-elite');
+
+const router = express.Router();
 
 function removeFile(FilePath) {
     if (!fs.existsSync(FilePath)) return false;
@@ -37,33 +38,33 @@ router.get('/', async (req, res) => {
             let Pair_Code_By_Mbuvi_Tech = Mbuvi_Tech({
                 auth: {
                     creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, pino({level: "fatal"}).child({level: "fatal"})),
+                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'fatal' }).child({ level: 'fatal' })),
                 },
                 printQRInTerminal: false,
-                logger: pino({level: "fatal"}).child({level: "fatal"}),
-                browser: ["Chrome (Ubuntu)", "Chrome (Linux)", "Chrome (MacOs)"]
+                logger: pino({ level: 'fatal' }).child({ level: 'fatal' }),
+                browser: Browsers ? ["Chrome (Ubuntu)", "Chrome (Linux)", "Chrome (MacOs)"] : ["Chrome", "120.0.0.0", "Ubuntu"]
             });
 
             if (!Pair_Code_By_Mbuvi_Tech.authState.creds.registered) {
                 await delay(1500);
-                num = num.replace(/[^0-9]/g,'');
+                num = num.replace(/[^0-9]/g, '');
                 const code = await Pair_Code_By_Mbuvi_Tech.requestPairingCode(num);
                 if (!res.headersSent) {
                     await res.send({ code });
                 }
             } else {
                 if (!res.headersSent) {
-                    await res.send({ code: "Already paired" });
+                    await res.send({ code: 'Already paired' });
                 }
             }
 
             Pair_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds);
-            Pair_Code_By_Mbuvi_Tech.ev.on("connection.update", async (s) => {
+            Pair_Code_By_Mbuvi_Tech.ev.on('connection.update', async (s) => {
                 const {
                     connection,
                     lastDisconnect
                 } = s;
-                if (connection == "open") {
+                if (connection == 'open') {
                     await delay(5000);
                     const credsPath = path.join(tempDir, 'creds.json');
                     // Check if creds.json exists before reading
@@ -105,8 +106,8 @@ ________________________
 ║❍ 𝐘𝐨𝐮𝐭𝐮𝐛𝐞: _youtube.com/@Rhodvick_
 ║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
 ║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
-║❍ 𝐖𝐚𝐆�{r𝐨𝐮𝐩: _https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P_
-║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐬𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
+║❍ 𝐖𝐚𝐆𝗿𝐨𝐮𝐩: _https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P_
+║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
 ║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: _https://www.instagram.com/_mbuvi_
 ║ ☬ ☬ ☬ ☬
 ╚═════════════════════╝ 
@@ -123,7 +124,7 @@ ______________________________`;
                     await saveCreds();
                     await Pair_Code_By_Mbuvi_Tech.ws.close();
                     await removeFile(tempDir);
-                } else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
+                } else if (connection === 'close' && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
                     await delay(10000);
                     MBUVI_MD_PAIR_CODE();
                 }
@@ -132,7 +133,7 @@ ______________________________`;
             console.log(`Service error: ${err}`);
             await removeFile(tempDir);
             if (!res.headersSent) {
-                await res.send({ code: "Service Currently Unavailable" });
+                await res.send({ code: 'Service Currently Unavailable' });
             }
         }
     }
