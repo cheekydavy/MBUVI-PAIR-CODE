@@ -1,5 +1,5 @@
 const express = require('express');
-const { default: makeWASocket, DisconnectReason, Browsers, makeInMemoryStore } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const path = require('path');
 const fs = require('fs');
@@ -33,18 +33,35 @@ router.get('/', async (req, res) => {
             fs.mkdirSync(tempDir, { recursive: true });
         }
 
-        // Use in-memory store for auth state
-        const store = makeInMemoryStore({ logger: pino({ level: 'silent' }) });
-        let authState = null;
+        // In-memory credentials storage
+        let creds = null;
+        let saveCreds = async () => {
+            if (creds) {
+                try {
+                    fs.writeFileSync(path.join(tempDir, 'creds.json'), JSON.stringify(creds));
+                } catch (err) {
+                    console.error(`Failed to save creds: ${err}`);
+                }
+            }
+        };
 
         try {
-            // Initialize socket
+            // Initialize socket with in-memory auth
             const sock = makeWASocket({
                 logger: pino({ level: 'silent' }),
                 printQRInTerminal: false,
                 browser: Browsers.macOS('Chrome'),
-                auth: authState,
+                auth: {
+                    creds,
+                    keys: {},
+                },
                 markOnlineOnConnect: false,
+            });
+
+            // Update creds when they change
+            sock.ev.on('creds.update', async (updatedCreds) => {
+                creds = updatedCreds;
+                await saveCreds();
             });
 
             // Handle connection updates
@@ -77,7 +94,7 @@ router.get('/', async (req, res) => {
                     }
                 } else if (connection === 'open') {
                     // Save session data
-                    const sessionData = Buffer.from(JSON.stringify(sock.authState.creds)).toString('base64');
+                    const sessionData = Buffer.from(JSON.stringify(creds)).toString('base64');
                     const session = await sock.sendMessage(sock.user.id, { text: sessionData });
 
                     const messageText = `
@@ -131,12 +148,6 @@ ______________________________`;
                         }
                     }
                 }
-            });
-
-            // Save credentials when updated
-            sock.ev.on('creds.update', async () => {
-                // In-memory store handles this automatically
-                // Optionally, persist to a file or database in production
             });
 
         } catch (err) {
