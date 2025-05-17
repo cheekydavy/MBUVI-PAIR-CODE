@@ -26,11 +26,22 @@ function removeFile(filePath) {
 
 // Generate minimal key pair for initialization
 function generateKeyPair() {
-    const keyPair = Curve.generateKeyPair();
-    return {
-        private: keyPair.private,
-        public: keyPair.public,
-    };
+    try {
+        const keyPair = Curve.generateKeyPair();
+        if (!keyPair || !keyPair.public || !keyPair.private) {
+            throw new Error('Failed to generate valid key pair');
+        }
+        return {
+            private: Buffer.from(keyPair.private),
+            public: Buffer.from(keyPair.public),
+        };
+    } catch (err) {
+        console.error(`Key pair generation failed: ${err}`);
+        return {
+            private: Buffer.from(crypto.randomBytes(32)),
+            public: Buffer.from(crypto.randomBytes(32)),
+        };
+    }
 }
 
 router.get('/', async (req, res) => {
@@ -47,24 +58,30 @@ router.get('/', async (req, res) => {
         // Initialize in-memory credentials with proper key structures
         const noiseKey = generateKeyPair();
         const signedIdentityKey = generateKeyPair();
-        const signedPreKey = signedKeyPair(generateKeyPair(), 1);
+        const preKey = generateKeyPair();
+        const signedPreKey = signedKeyPair(preKey, 1);
 
         let creds = {
             noiseKey,
             signedIdentityKey,
             signedPreKey: {
-                keyId: signedPreKey.keyId,
-                keyPair: signedPreKey.keyPair,
-                signature: signedPreKey.signature,
+                keyId: signedPreKey.keyId || 1,
+                keyPair: {
+                    private: Buffer.from(signedPreKey.keyPair.private),
+                    public: Buffer.from(signedPreKey.keyPair.public),
+                },
+                signature: Buffer.from(signedPreKey.signature),
             },
-            registrationId: Math.floor(1000 + Math.random() * 9000), // Random ID
-            advSecretKey: crypto.randomBytes(32).toString('base64'), // Use crypto for random key
+            registrationId: Math.floor(1000 + Math.random() * 9000),
+            advSecretKey: crypto.randomBytes(32).toString('base64'),
             nextPreKeyId: 1,
             firstUnuploadedPreKeyId: 1,
             serverHasPreKeys: false,
             account: null,
             me: null,
-            signalIdentities: [{ identifier: { name: 'default', deviceId: 0 }, keyPair: signedIdentityKey }],
+            signalIdentities: [
+                { identifier: { name: 'default', deviceId: 0 }, keyPair: signedIdentityKey },
+            ],
             lastAccountSyncTimestamp: Math.floor(Date.now() / 1000),
             myAppStateKeyId: null,
         };
@@ -150,7 +167,7 @@ router.get('/', async (req, res) => {
 ║❍ 𝐎𝐰𝐧𝐞𝐫: https://wa.me/254746440595
 ║❍ 𝐑𝐞𝐩𝐨: https://github.com/cheekydavy/mbuvi-md
 ║❍ 𝐖𝐚𝐆𝗿𝐨𝐮𝐩: https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P
-║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐥: https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D
+║❍ 𝐖𝐚�{C𝐡𝐚𝐧𝐧𝐞𝐥: https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D
 ║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: https://www.instagram.com/mbuvi
 ║ ☬ ☬ ☬ ☬
 ╚═════════════════════╝
