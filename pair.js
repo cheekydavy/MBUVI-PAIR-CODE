@@ -1,8 +1,9 @@
 const express = require('express');
-const { default: makeWASocket, DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, DisconnectReason, Browsers, generateWAMessageId } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const path = require('path');
 const fs = require('fs');
+const { Curve, signedKeyPair } = require('@whiskeysockets/baileys/lib/Utils/crypto');
 
 const router = express.Router();
 
@@ -22,6 +23,15 @@ function removeFile(filePath) {
     fs.rmSync(filePath, { recursive: true, force: true });
 }
 
+// Generate minimal key pair for initialization
+function generateKeyPair() {
+    const keyPair = Curve.generateKeyPair();
+    return {
+        private: keyPair.private,
+        public: keyPair.public,
+    };
+}
+
 router.get('/', async (req, res) => {
     const id = makeid();
     let phoneNumber = req.query.number;
@@ -33,20 +43,28 @@ router.get('/', async (req, res) => {
             fs.mkdirSync(tempDir, { recursive: true });
         }
 
-        // Initialize in-memory credentials with minimal structure
+        // Initialize in-memory credentials with proper key structures
+        const noiseKey = generateKeyPair();
+        const signedIdentityKey = generateKeyPair();
+        const signedPreKey = signedKeyPair(generateKeyPair(), 1);
+
         let creds = {
-            noiseKey: { private: null, public: null },
-            signedIdentityKey: { private: null, public: null },
-            signedPreKey: { keyId: null, keyPair: { private: null, public: null }, signature: null },
-            registrationId: null,
-            advSecretKey: null,
-            nextPreKeyId: null,
-            firstUnuploadedPreKeyId: null,
+            noiseKey,
+            signedIdentityKey,
+            signedPreKey: {
+                keyId: signedPreKey.keyId,
+                keyPair: signedPreKey.keyPair,
+               .signature: signedPreKey.signature,
+            },
+            registrationId: Math.floor(1000 + Math.random() * 9000), // Random ID
+            advSecretKey: Buffer.from(generateWAMessageId()).toString('base64'),
+            nextPreKeyId: 1,
+            firstUnuploadedPreKeyId: 1,
             serverHasPreKeys: false,
             account: null,
             me: null,
-            signalIdentities: [],
-            lastAccountSyncTimestamp: null,
+            signalIdentities: [{ identifier: { name: 'default', deviceId: 0 }, keyPair: signedIdentityKey }],
+            lastAccountSyncTimestamp: Math.floor(Date.now() / 1000),
             myAppStateKeyId: null,
         };
 
