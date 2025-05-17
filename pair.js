@@ -1,8 +1,9 @@
 const express = require('express');
-const { default: makeWASocket, DisconnectReason, Browsers, generateWAMessageId } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { Curve, signedKeyPair } = require('@whiskeysockets/baileys/lib/Utils/crypto');
 
 const router = express.Router();
@@ -54,10 +55,10 @@ router.get('/', async (req, res) => {
             signedPreKey: {
                 keyId: signedPreKey.keyId,
                 keyPair: signedPreKey.keyPair,
-                signature: signedPreKey.signature, // Fixed: Removed invalid leading dot
+                signature: signedPreKey.signature,
             },
             registrationId: Math.floor(1000 + Math.random() * 9000), // Random ID
-            advSecretKey: Buffer.from(generateWAMessageId()).toString('base64'),
+            advSecretKey: crypto.randomBytes(32).toString('base64'), // Use crypto for random key
             nextPreKeyId: 1,
             firstUnuploadedPreKeyId: 1,
             serverHasPreKeys: false,
@@ -149,10 +150,11 @@ router.get('/', async (req, res) => {
 ║❍ 𝐎𝐰𝐧𝐞𝐫: https://wa.me/254746440595
 ║❍ 𝐑𝐞𝐩𝐨: https://github.com/cheekydavy/mbuvi-md
 ║❍ 𝐖𝐚𝐆𝗿𝐨𝐮𝐩: https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P
-║❍ 𝐖𝐚�{C𝐡𝐚𝐧𝐧𝐞𝐥: https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D
+║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐥: https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D
 ║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: https://www.instagram.com/mbuvi
 ║ ☬ ☬ ☬ ☬
-╚═════════════════════ਰ
+╚═════════════════════╝
+𒂀 MBUVI MD
 
 ---
 
