@@ -33,34 +33,48 @@ router.get('/', async (req, res) => {
             fs.mkdirSync(tempDir, { recursive: true });
         }
 
-        // In-memory credentials storage
-        let creds = null;
+        // Initialize in-memory credentials with minimal structure
+        let creds = {
+            noiseKey: { private: null, public: null },
+            signedIdentityKey: { private: null, public: null },
+            signedPreKey: { keyId: null, keyPair: { private: null, public: null }, signature: null },
+            registrationId: null,
+            advSecretKey: null,
+            nextPreKeyId: null,
+            firstUnuploadedPreKeyId: null,
+            serverHasPreKeys: false,
+            account: null,
+            me: null,
+            signalIdentities: [],
+            lastAccountSyncTimestamp: null,
+            myAppStateKeyId: null,
+        };
+
+        // Track whether credentials need saving
         let saveCreds = async () => {
-            if (creds) {
-                try {
-                    fs.writeFileSync(path.join(tempDir, 'creds.json'), JSON.stringify(creds));
-                } catch (err) {
-                    console.error(`Failed to save creds: ${err}`);
-                }
+            try {
+                fs.writeFileSync(path.join(tempDir, 'creds.json'), JSON.stringify(creds));
+            } catch (err) {
+                console.error(`Failed to save creds: ${err}`);
             }
         };
 
         try {
-            // Initialize socket with in-memory auth
+            // Initialize socket
             const sock = makeWASocket({
                 logger: pino({ level: 'silent' }),
                 printQRInTerminal: false,
                 browser: Browsers.macOS('Chrome'),
                 auth: {
                     creds,
-                    keys: {},
+                    keys: {}, // Baileys will populate keys during connection
                 },
                 markOnlineOnConnect: false,
             });
 
             // Update creds when they change
             sock.ev.on('creds.update', async (updatedCreds) => {
-                creds = updatedCreds;
+                creds = { ...creds, ...updatedCreds };
                 await saveCreds();
             });
 
