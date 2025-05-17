@@ -11,7 +11,7 @@ const {
     delay,
     makeCacheableSignalKeyStore,
     Browsers
-} = require('@whiskeysockets/baileys');
+} = require('baileys');
 
 const router = express.Router();
 
