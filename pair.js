@@ -11,7 +11,7 @@ useMultiFileAuthState,
 delay,
 makeCacheableSignalKeyStore,
 Browsers
-} = require('gifted-baileys');
+} = require('baileys-pro');
 
 const router = express.Router();
 
