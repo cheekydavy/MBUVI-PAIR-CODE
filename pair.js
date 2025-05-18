@@ -1,153 +1,78 @@
 const express = require('express');
-const { default: makeWASocket, DisconnectReason, Browsers } = require('@whiskeysockets/baileys');
-const pino = require('pino');
-const path = require('path');
 const fs = require('fs');
-const crypto = require('crypto');
-const { Curve, signedKeyPair } = require('@whiskeysockets/baileys/lib/Utils/crypto');
+const path = require('path');
+const pino = require('pino');
+const {
+    default: makeWASocket,
+    delay,
+    Browsers
+} = require('gifted-baileys');
+const { makeid } = require('./id');
 
 const router = express.Router();
 
-// Utility to generate a random ID
-function makeid() {
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < 10; i++) {
-        result += characters.charAt(Math.floor(Math.random() * characters.length));
-    }
-    return result;
-}
-
-// Utility to remove temporary files
-function removeFile(filePath) {
-    if (!fs.existsSync(filePath)) return false;
-    fs.rmSync(filePath, { recursive: true, force: true });
-}
-
-// Generate minimal key pair for initialization
-function generateKeyPair() {
-    try {
-        const keyPair = Curve.generateKeyPair();
-        if (!keyPair || !keyPair.public || !keyPair.private) {
-            throw new Error('Failed to generate valid key pair');
-        }
-        return {
-            private: Buffer.from(keyPair.private),
-            public: Buffer.from(keyPair.public),
-        };
-    } catch (err) {
-        console.error(`Key pair generation failed: ${err}`);
-        return {
-            private: Buffer.from(crypto.randomBytes(32)),
-            public: Buffer.from(crypto.randomBytes(32)),
-        };
-    }
+function removeFile(FilePath) {
+    if (!fs.existsSync(FilePath)) return false;
+    fs.rmSync(FilePath, { recursive: true, force: true });
 }
 
 router.get('/', async (req, res) => {
     const id = makeid();
-    let phoneNumber = req.query.number;
+    let num = req.query.number;
 
-    async function pairWithCode() {
-        // Create temporary directory for session
+    async function MBUVI_MD_PAIR_CODE() {
         const tempDir = path.join(__dirname, 'temp', id);
         if (!fs.existsSync(tempDir)) {
             fs.mkdirSync(tempDir, { recursive: true });
         }
 
-        // Initialize in-memory credentials with proper key structures
-        const noiseKey = generateKeyPair();
-        const signedIdentityKey = generateKeyPair();
-        const preKey = generateKeyPair();
-        const signedPreKey = signedKeyPair(preKey, 1);
-
-        let creds = {
-            noiseKey,
-            signedIdentityKey,
-            signedPreKey: {
-                keyId: signedPreKey.keyId || 1,
-                keyPair: {
-                    private: Buffer.from(signedPreKey.keyPair.private),
-                    public: Buffer.from(signedPreKey.keyPair.public),
-                },
-                signature: Buffer.from(signedPreKey.signature),
-            },
-            registrationId: Math.floor(1000 + Math.random() * 9000),
-            advSecretKey: crypto.randomBytes(32).toString('base64'),
-            nextPreKeyId: 1,
-            firstUnuploadedPreKeyId: 1,
-            serverHasPreKeys: false,
-            account: null,
-            me: null,
-            signalIdentities: [
-                { identifier: { name: 'default', deviceId: 0 }, keyPair: signedIdentityKey },
-            ],
-            lastAccountSyncTimestamp: Math.floor(Date.now() / 1000),
-            myAppStateKeyId: null,
-        };
-
-        // Track whether credentials need saving
-        let saveCreds = async () => {
-            try {
-                fs.writeFileSync(path.join(tempDir, 'creds.json'), JSON.stringify(creds));
-            } catch (err) {
-                console.error(`Failed to save creds: ${err}`);
-            }
-        };
-
         try {
-            // Initialize socket
-            const sock = makeWASocket({
-                logger: pino({ level: 'silent' }),
+            let sock = makeWASocket({
                 printQRInTerminal: false,
-                browser: Browsers.macOS('Chrome'),
-                auth: {
-                    creds,
-                    keys: {}, // Baileys will populate keys during connection
-                },
-                markOnlineOnConnect: false,
+                logger: pino({ level: 'fatal' }).child({ level: 'fatal' }),
+                browser: Browsers ? ["Chrome (Ubuntu)", "Chrome (Linux)", "Chrome (MacOs)"] : ["Chrome", "120.0.0.0", "Ubuntu"]
             });
 
-            // Update creds when they change
-            sock.ev.on('creds.update', async (updatedCreds) => {
-                creds = { ...creds, ...updatedCreds };
-                await saveCreds();
-            });
+            if (!sock.authState.creds.registered) {
+                await delay(1500);
+                num = num.replace(/[^0-9]/g, '');
+                const code = await sock.requestPairingCode(num);
+                if (!res.headersSent) {
+                    await res.send({ code });
+                }
+            } else {
+                if (!res.headersSent) {
+                    await res.send({ code: 'Already paired' });
+                }
+            }
 
-            // Handle connection updates
-            sock.ev.on('connection.update', async (update) => {
-                const { connection, lastDisconnect, qr } = update;
-
-                if (connection === 'connecting' || qr) {
-                    if (!sock.authState.creds.registered) {
-                        // Clean and format phone number (E.164 without +)
-                        phoneNumber = phoneNumber.replace(/[^0-9]/g, '');
-                        try {
-                            const code = await sock.requestPairingCode(phoneNumber);
-                            if (!res.headersSent) {
-                                res.send({ code });
-                            }
-                        } catch (err) {
-                            console.error(`Failed to request pairing code: ${err}`);
-                            if (!res.headersSent) {
-                                res.send({ code: 'Failed to generate pairing code' });
-                            }
-                            await sock.ws.close();
-                            removeFile(tempDir);
-                        }
-                    } else {
-                        if (!res.headersSent) {
-                            res.send({ code: 'Already paired' });
-                        }
+            sock.ev.on('connection.update', async (s) => {
+                const { connection, lastDisconnect } = s;
+                if (connection === 'open') {
+                    await delay(5000);
+                    const credsPath = path.join(tempDir, 'creds.json');
+                    if (!fs.existsSync(credsPath)) {
+                        console.log(`Creds file not found at ${credsPath}, skipping session send`);
                         await sock.ws.close();
-                        removeFile(tempDir);
+                        await removeFile(tempDir);
+                        return;
                     }
-                } else if (connection === 'open') {
-                    // Save session data
-                    const sessionData = Buffer.from(JSON.stringify(creds)).toString('base64');
-                    const session = await sock.sendMessage(sock.user.id, { text: sessionData });
 
-                    const messageText = `
+                    let data;
+                    try {
+                        data = fs.readFileSync(credsPath);
+                    } catch (err) {
+                        console.log(`Failed to read creds.json: ${err}`);
+                        await sock.ws.close();
+                        await removeFile(tempDir);
+                        return;
+                    }
+
+                    await delay(800);
+                    let b64data = Buffer.from(data).toString('base64');
+                    let session = await sock.sendMessage(sock.user.id, { text: '' + b64data });
+
+                    let MBUVI_MD_TEXT = `
 ╔════════════════════◇
 ║『 SESSION CONNECTED』
 ║ ✨MBUVI-MD🔷
@@ -159,16 +84,16 @@ router.get('/', async (req, res) => {
 ╔════════════════════◇
 ║『 YOU'VE CHOSEN MBUVI MD 』
 ║ -Set the session ID in Heroku:
-║ - SESSION_ID: mbuvi~${sessionData}
+║ - SESSION_ID: mbuvi~<data>
 ╚════════════════════╝
 ╔════════════════════◇
-║ 『••• _Visit For Help •••』
+║ 『••• _V𝗶𝘀𝗶𝘁 𝗙𝗼𝗿_H𝗲𝗹𝗽 •••』
 ║❍ 𝐘𝐨𝐮𝐭𝐮𝐛𝐞: youtube.com/@Rhodvick
 ║❍ 𝐎𝐰𝐧𝐞𝐫: https://wa.me/254746440595
 ║❍ 𝐑𝐞𝐩𝐨: https://github.com/cheekydavy/mbuvi-md
 ║❍ 𝐖𝐚𝐆𝗿𝐨𝐮𝐩: https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P
-║❍ 𝐖𝐚�{C𝐡𝐚𝐧𝐧𝐞𝐥: https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D
-║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: https://www.instagram.com/mbuvi
+║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐥: https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D
+║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: _https://www.instagram.com/mbuvi
 ║ ☬ ☬ ☬ ☬
 ╚═════════════════════╝
 𒂀 MBUVI MD
@@ -178,38 +103,27 @@ router.get('/', async (req, res) => {
 Don't Forget To Give Star⭐ To My Repo
 ______________________________`;
 
-                    await sock.sendMessage(sock.user.id, { text: messageText }, { quoted: session });
+                    await sock.sendMessage(sock.user.id, { text: MBUVI_MD_TEXT }, { quoted: session });
 
-                    // Close connection and clean up
-                    await new Promise(resolve => setTimeout(resolve, 100));
+                    await delay(100);
+                    sock.authState.creds.registered = true;
                     await sock.ws.close();
-                    removeFile(tempDir);
-                } else if (connection === 'close') {
-                    const statusCode = lastDisconnect?.error?.output?.statusCode;
-                    if (statusCode === DisconnectReason.restartRequired) {
-                        // Restart connection
-                        pairWithCode();
-                    } else if (statusCode !== 401) {
-                        // Handle other errors
-                        console.error(`Disconnected with status ${statusCode}`);
-                        removeFile(tempDir);
-                        if (!res.headersSent) {
-                            res.send({ code: 'Connection failed' });
-                        }
-                    }
+                    await removeFile(tempDir);
+                } else if (connection === 'close' && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
+                    await delay(10000);
+                    MBUVI_MD_PAIR_CODE();
                 }
             });
-
         } catch (err) {
-            console.error(`Service error: ${err}`);
-            removeFile(tempDir);
+            console.log(`Service error: ${err}`);
+            await removeFile(tempDir);
             if (!res.headersSent) {
-                res.send({ code: 'Service Currently Unavailable' });
+                await res.send({ code: 'Service Currently Unavailable' });
             }
         }
     }
 
-    return await pairWithCode();
+    return await MBUVI_MD_PAIR_CODE();
 });
 
 module.exports = router;
