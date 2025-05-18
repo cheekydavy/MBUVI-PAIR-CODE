@@ -11,7 +11,7 @@ useMultiFileAuthState,
 delay,
 makeCacheableSignalKeyStore,
 Browsers
-} = require('baileys-pro');
+} = require('@whiskeysockets/baileys');
 
 const router = express.Router();
 
