@@ -39,6 +39,17 @@ router.get('/', async (req, res) => {
     async function startPairing() {
         try {
             const { version } = await fetchLatestWaWebVersion();
+
+            // Ensure the temporary session directory exists before Baileys writes creds
+            try {
+                if (!fs.existsSync(tempDir)) {
+                    fs.mkdirSync(tempDir, { recursive: true });
+                }
+            } catch (mkdirErr) {
+                console.error('Failed to create temp session directory', tempDir, mkdirErr);
+                throw mkdirErr;
+            }
+
             const { state, saveCreds } = await useMultiFileAuthState(tempDir);
 
             const sock = Mbuvi_Tech({
