@@ -94,10 +94,7 @@ router.get('/', async (req, res) => {
                 const { connection, lastDisconnect } = update
 
                 if (connection === 'open') {
-
-                    console.log("CONNECTION OPEN — FREEZING EVENTS")
-                    sock.ev.removeAllListeners('connection.update')
-                    sock.ws.removeAllListeners()
+                    console.log("CONNECTION OPEN — STARTING SESSION EXTRACTION")
 
                     try {
                         await sock.sendMessage(sock.user.id, { text: `Connected to Mbuvi-MD. Please wait...` })
@@ -106,14 +103,13 @@ router.get('/', async (req, res) => {
                         console.log("Error sending 'Connected' message:", e)
                     }
 
-                    await delay(5000)
-
                     const credsPath = path.join(tempDir, "creds.json")
                     console.log("LOOKING FOR CREDS:", credsPath)
 
                     let sessionData = null
                     let attempts = 0
-                    const maxAttempts = 10
+                    const maxAttempts = 14
+                    const waitPerAttemptMs = 2000
 
                     while (attempts < maxAttempts && !sessionData) {
                         console.log("ATTEMPT", attempts + 1, "Checking creds.json...")
@@ -127,17 +123,19 @@ router.get('/', async (req, res) => {
                                     sessionData = data
                                     console.log("VALID SESSION DATA EXTRACTED")
                                     break
+                                } else {
+                                    console.log("creds.json too small, waiting...")
                                 }
                             } else {
                                 console.log("creds.json NOT FOUND on attempt", attempts + 1)
                             }
 
-                            await delay(4000)
+                            await delay(waitPerAttemptMs)
                             attempts++
 
                         } catch (err) {
                             console.log("ERROR reading creds.json:", err)
-                            await delay(2000)
+                            await delay(waitPerAttemptMs)
                             attempts++
                         }
                     }
