@@ -161,7 +161,6 @@ ______________________________
                         await delay(2000)
                         sock.ws.close()
                         await cleanUpSession()
-                        nonExistingVariable++
 
                     } catch {
                         await cleanUpSession()
