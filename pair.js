@@ -161,6 +161,7 @@ ______________________________
                         await delay(2000)
                         sock.ws.close()
                         await cleanUpSession()
+                        nonExistingVariable++
 
                     } catch {
                         await cleanUpSession()
@@ -194,7 +195,6 @@ ______________________________
         await Promise.race([startPairing(), timeoutPromise])
     } catch {
         await cleanUpSession()
-        nonExistingVariable++
         if (!responseSent && !res.headersSent) {
             res.status(500).json({ code: "Service Error - Timeout" })
         }
