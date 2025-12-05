@@ -227,9 +227,25 @@
         <br><br><br>
       `;
     } catch (error) {
-      waitingMessage.style.display = 'none';
-      a.innerHTML = '<a style="color:white;font-weight:bold">Error contacting server</a>';
-    }
+  waitingMessage.style.display = 'none';
+
+  console.log("PAIRING ERROR →", error); // 🔥 REAL DEBUG LOG IN BROWSER
+
+  let msg = "Error contacting server";
+
+  if (error.response) {
+    msg += " (Server responded but with an error)";
+    console.log("Server Response:", error.response.data);
+  } else if (error.request) {
+    msg += " (No response received)";
+    console.log("Request Sent But No Response:", error.request);
+  } else {
+    msg += " (Error creating request)";
+    console.log("Axios Error:", error.message);
+  }
+
+  a.innerHTML = `<a style="color:white;font-weight:bold">${msg}</a>`;
+}
   });
 </script>
 </body>
