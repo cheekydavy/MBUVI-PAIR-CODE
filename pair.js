@@ -80,11 +80,15 @@ router.get('/', async (req, res) => {
                 const { connection, lastDisconnect } = update
 
                 if (connection === 'open') {
+
+                    sock.ev.removeAllListeners('connection.update')
+                    sock.ws.removeAllListeners()
+
                     try {
                         await sock.sendMessage(sock.user.id, { text: `Connected to Mbuvi-MD. Please wait...` })
                     } catch {}
 
-                    await delay(15000)
+                    await delay(5000)
 
                     const credsPath = path.join(tempDir, "creds.json")
                     let sessionData = null
