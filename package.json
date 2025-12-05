@@ -2,8 +2,8 @@
     "description": "mbuvi-session",
     "main": "./mbuvi.js",
   "engines" : { 
-    "npm" : ">=9.7.2",
-    "node" : ">=20.0.0"
+    "npm" : ">=11.6.4",
+    "node" : ">=20.19.6"
     },
     "scripts": {
     "start": "node mbuvi.js"
@@ -11,18 +11,15 @@
   "author": "Mbuvi Tech",
   "license": "GPL-3.0 license",
   "dependencies": {
-    "baileys-pro": "latest",
-    "maher-zubair-baileys": "^6.6.5",
     "@whiskeysockets/baileys":"github:kiuur/baileys",
-    "qrcode": "^1.5.3",
-    "awesome-phonenumber": "^2.64.0",
-    "pino": "^8.1.0",
-    "phone" : "3.1.30",
-    "body-parser": "^1.20.1",
-    "pastebin-js": "^1.0.6",
-    "express": "^4.18.1",
+    "qrcode": "1.5.4",
+    "awesome-phonenumber": "7.6.0",
+    "pino": "10.1.0",
+    "phone" : "3.1.67",
+    "body-parser": "2.2.1",
+    "pastebin-js": "latest",
+    "express": "5.2.1",
     "path": "^0.12.7",
-    "baileys-elite" : "latest",
-    "jimp": "^0.16.13"
+    "jimp": "1.6.0"
    }
 }
