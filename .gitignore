@@ -16,3 +16,13 @@ bin-release/
 # Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
 # should NOT be excluded as they contain compiler settings and other important
 # information for Eclipse / Legacy Builder.
+
+
+# Node modules - do not commit
+node_modules/
+
+# Local env files
+.env
+
+# temp/session files
+/temp/
