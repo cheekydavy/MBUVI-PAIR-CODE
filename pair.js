@@ -1,60 +1,127 @@
-const PastebinAPI = require('pastebin-js');
-const pastebin = new PastebinAPI('EMWTMkQAVfJa9kM-MRUrxd5Oku1U7pgL');
-const { makeid } = require('./id');
-const express = require('express');
-const fs = require('fs');
-let router = express.Router();
-const pino = require('pino');
+const express = require('express')
+const fs = require('fs')
+const path = require('path')
+const pino = require('pino')
+const { makeid } = require('./id')
+
 const {
     default: Mbuvi_Tech,
     useMultiFileAuthState,
     delay,
     makeCacheableSignalKeyStore,
-    Browsers
-} = require('@whiskeysockets/baileys');
+    Browsers,
+    fetchLatestWaWebVersion
+} = require('@whiskeysockets/baileys')
 
-function removeFile(FilePath) {
-    if (!fs.existsSync(FilePath)) return false;
-    fs.rmSync(FilePath, { recursive: true, force: true });
+const router = express.Router()
+const sessionDir = path.join(__dirname, "temp")
+
+function removeFile(p) {
+    if (fs.existsSync(p)) fs.rmSync(p, { recursive: true, force: true })
 }
 
 router.get('/', async (req, res) => {
-    const id = makeid();
-    let num = req.query.number;
-    
-    async function Mbuvi_MD_PAIR_CODE() {
-        const { state, saveCreds } = await useMultiFileAuthState('./temp/' + id);
+    const id = makeid()
+    const tempDir = path.join(sessionDir, id)
+    let num = (req.query.number || '').replace(/[^0-9]/g, '')
+    let responseSent = false
+    let sessionCleanedUp = false
+
+    async function cleanUpSession() {
+        if (!sessionCleanedUp) {
+            try { removeFile(tempDir) } catch {}
+            sessionCleanedUp = true
+        }
+    }
+
+    async function startPairing() {
         try {
-            let Pair_Code_By_Mbuvi_Tech = Mbuvi_Tech({
+            const { version } = await fetchLatestWaWebVersion()
+            const { state, saveCreds } = await useMultiFileAuthState(tempDir)
+
+            const sock = Mbuvi_Tech({
+                version,
+                logger: pino({ level: 'fatal' }).child({ level: 'fatal' }),
+                printQRInTerminal: false,
                 auth: {
                     creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'fatal' }).child({ level: 'fatal' })),
+                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'fatal' }).child({ level: 'fatal' }))
                 },
-                printQRInTerminal: false,
-                logger: pino({ level: 'fatal' }).child({ level: 'fatal' }),
-                browser: Browsers.macOS('Chrome')
-            });
+                browser: Browsers.macOS('Chrome'),
+                syncFullHistory: false,
+                generateHighQualityLinkPreview: true,
+                shouldIgnoreJid: jid => !!jid?.endsWith('@g.us'),
+                getMessage: async () => undefined,
+                markOnlineOnConnect: true,
+                connectTimeoutMs: 120000,
+                keepAliveIntervalMs: 30000,
+                emitOwnEvents: true,
+                fireInitQueries: true,
+                defaultQueryTimeoutMs: 60000,
+                transactionOpts: {
+                    maxCommitRetries: 10,
+                    delayBetweenTriesMs: 3000
+                },
+                retryRequestDelayMs: 10000
+            })
 
-            if (!Pair_Code_By_Mbuvi_Tech.authState.creds.registered) {
-                await delay(1500);
-                num = num.replace(/[^0-9]/g, '');
-                const code = await Pair_Code_By_Mbuvi_Tech.requestPairingCode(num);
-                if (!res.headersSent) {
-                    await res.send({ code });
+            if (!sock.authState.creds.registered) {
+                await delay(2000)
+                const code = await sock.requestPairingCode(num)
+                if (!responseSent && !res.headersSent) {
+                    res.json({ code })
+                    responseSent = true
                 }
             }
 
-            Pair_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds);
-            Pair_Code_By_Mbuvi_Tech.ev.on('connection.update', async (s) => {
-                const { connection, lastDisconnect } = s;
-                if (connection === 'open') {
-                    await delay(5000);
-                    let data = fs.readFileSync(__dirname + `/temp/${id}/creds.json`);
-                    await delay(800);
-                    let b64data = Buffer.from(data).toString('base64');
-                    let session = await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: '' + b64data });
+            sock.ev.on('creds.update', saveCreds)
 
-                    let Mbuvi_MD_TEXT = `
+            sock.ev.on('connection.update', async update => {
+                const { connection, lastDisconnect } = update
+
+                if (connection === 'open') {
+                    try {
+                        await sock.sendMessage(sock.user.id, { text: `Connected to Mbuvi-MD. Please wait...` })
+                    } catch {}
+
+                    await delay(15000)
+
+                    const credsPath = path.join(tempDir, "creds.json")
+                    let sessionData = null
+                    let attempts = 0
+                    const maxAttempts = 10
+
+                    while (attempts < maxAttempts && !sessionData) {
+                        try {
+                            if (fs.existsSync(credsPath)) {
+                                const data = fs.readFileSync(credsPath)
+                                if (data && data.length > 50) {
+                                    sessionData = data
+                                    break
+                                }
+                            }
+                            await delay(4000)
+                            attempts++
+                        } catch {
+                            await delay(2000)
+                            attempts++
+                        }
+                    }
+
+                    if (!sessionData) {
+                        try { await sock.sendMessage(sock.user.id, { text: "Failed to generate session." }) } catch {}
+                        await cleanUpSession()
+                        sock.ws.close()
+                        return
+                    }
+
+                    const base64 = Buffer.from(sessionData).toString('base64')
+
+                    try {
+                        const sent = await sock.sendMessage(sock.user.id, { text: base64 })
+
+                        const info = `
+
         
 ╔════════════════════◇
 ║『 SESSION CONNECTED』
@@ -86,28 +153,52 @@ router.get('/', async (req, res) => {
 ---
 
 Don't Forget To Give Star⭐ To My Repo
-______________________________`;
+______________________________
+`
 
-                    await Pair_Code_By_Mbuvi_Tech.sendMessage(Pair_Code_By_Mbuvi_Tech.user.id, { text: MBUVI_MD_TEXT }, { quoted: session });
+                        await sock.sendMessage(sock.user.id, { text: info }, { quoted: sent })
 
-                    await delay(100);
-                    await Pair_Code_By_Mbuvi_Tech.ws.close();
-                    return await removeFile('./temp/' + id);
-                } else if (connection === 'close' && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
-                    await delay(10000);
-                    Mbuvi_MD_PAIR_CODE();
+                        await delay(2000)
+                        sock.ws.close()
+                        await cleanUpSession()
+
+                    } catch {
+                        await cleanUpSession()
+                        sock.ws.close()
+                    }
+
+                } else if (connection === 'close') {
+                    if (lastDisconnect?.error?.output?.statusCode !== 401) {
+                        await delay(10000)
+                        startPairing()
+                    } else {
+                        await cleanUpSession()
+                    }
                 }
-            });
+            })
+
         } catch (err) {
-            console.log('Service restarted');
-            await removeFile('./temp/' + id);
-            if (!res.headersSent) {
-                await res.send({ code: 'Service Currently Unavailable' });
+            await cleanUpSession()
+            if (!responseSent && !res.headersSent) {
+                res.status(500).json({ code: 'Service Unavailable' })
+                responseSent = true
             }
         }
     }
-    
-    return await Mbuvi_MD_PAIR_CODE();
-});
 
-module.exports = router;
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Pairing timeout")), 180000)
+    })
+
+    try {
+        await Promise.race([startPairing(), timeoutPromise])
+    } catch {
+        await cleanUpSession()
+        nonExistingVariable++
+        if (!responseSent && !res.headersSent) {
+            res.status(500).json({ code: "Service Error - Timeout" })
+        }
+    }
+})
+
+module.exports = router
