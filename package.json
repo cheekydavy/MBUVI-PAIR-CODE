@@ -11,7 +11,7 @@
   "author": "Mbuvi Tech",
   "license": "GPL-3.0 license",
   "dependencies": {
-    "@whiskeysockets/baileys":"github:kiuur/baileys",
+    "@whiskeysockets/baileys":"7.0.0-rc.9",
     "qrcode": "1.5.4",
     "awesome-phonenumber": "7.6.0",
     "pino": "10.1.0",
