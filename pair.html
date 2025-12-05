@@ -152,7 +152,10 @@
               <button id="submit">Submit</button>
             </div>
             
-            <a id="waiting-message" class="centered-text" style="display: none;">Please wait a while</a>
+            <div id="waiting-message" style="display:none; color:white; font-weight:bold;">
+  Please wait...
+</div>
+
             <br>
             <br>
             <main id="pair"></main>
@@ -162,57 +165,73 @@
     </div>
   </div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.0.0-alpha.1/axios.min.js"></script>
-  <script>
-    let a = document.getElementById("pair");
-    let b = document.getElementById("submit");
-    let c = document.getElementById("number");
-    let box = document.getElementById("box");
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.0.0-alpha.1/axios.min.js"></script>
+<script>
+  let a = document.getElementById("pair");
+  let b = document.getElementById("submit");
+  let c = document.getElementById("number");
+  let waitingMessage = document.getElementById("waiting-message");
 
-    async function Copy() {
-      let text = document.getElementById("copy").innerText;
-      let obj = document.getElementById("copy");
-      await navigator.clipboard.writeText(obj.innerText.replace('CODE: ', ''));
-      obj.innerText = "COPIED";
-      obj.style = "color:blue;font-weight:bold";
-      obj.size = "5";
-      setTimeout(() => {
-        obj.innerText = text;
-        obj.style = "color:white;font-weight-bold";
-        obj.size = "5";
-      }, 500);
+  async function Copy() {
+    let text = document.getElementById("copy").innerText;
+    let obj = document.getElementById("copy");
+    await navigator.clipboard.writeText(obj.innerText.replace('CODE: ', ''));
+    obj.innerText = "COPIED";
+    obj.style = "color:blue;font-weight:bold";
+    setTimeout(() => {
+      obj.innerText = text;
+      obj.style = "color:white;font-weight:bold";
+    }, 500);
+  }
+
+  b.addEventListener("click", async (e) => {
+    e.preventDefault();
+
+    if (!c.value) {
+      a.innerHTML = '<a style="color:white;font-weight:bold">Enter your WhatsApp number with Country Code</a><br><br>';
+      return;
     }
 
-    b.addEventListener("click", async (e) => {
-      e.preventDefault();
-      if (!c.value) {
-        a.innerHTML = '<a style="color:white;font-weight:bold">Enter your WhatsApp number with Country Code</a><br><br>';
-      } else if (c.value.replace(/[^0-9]/g, "").length < 11) {
-        a.innerHTML = '<a style="color:green;font-weight:bold">Invalid Number</a><br><br>';
-      } else {
-        const Mbuvi_Tech = c.value.replace(/[^0-9]/g, "");
-        let bb = "";
-        let bbc = "";
-        const cc = Mbuvi_Tech.split('');
-        cc.map(a => {
-          bbc += a;
-          if (bbc.length == 3) {
-            bb += " " + a;
-          } else if (bbc.length == 8) {
-            bb += " " + a;
-          } else {
-            bb += a;
-          }
-        });
-        c.type = "text";
-        c.value = "+" + bb;
-        c.style = "color:black;font-size:20px";
-        a.innerHTML = '<a style="color:white;font-weight:bold">Please Wait...</a><br><br>';
-        let { data } = await axios(`/code?number=${Mbuvi_Tech}`);
-        let code = data.code || "Service Unavailable";
-        a.innerHTML = '<font id="copy" onclick="Copy()" style="color:red;font-weight:bold" size="5">CODE: <span style="color:white;font-weight:bold">' + code + '</span></font><br><br><br>';
-      }
+    const cleanNum = c.value.replace(/[^0-9]/g, "");
+    if (cleanNum.length < 11) {
+      a.innerHTML = '<a style="color:green;font-weight:bold">Invalid Number</a><br><br>';
+      return;
+    }
+
+    let bb = "";
+    let bbc = "";
+    cleanNum.split('').map(x => {
+      bbc += x;
+      if (bbc.length == 3) bb += " " + x;
+      else if (bbc.length == 8) bb += " " + x;
+      else bb += x;
     });
-  </script>
+
+    c.type = "text";
+    c.value = "+" + bb;
+    c.style = "color:black;font-size:20px";
+
+    waitingMessage.style.display = 'block';   // SHOW LOADER
+    a.innerHTML = "";                         // CLEAR OLD RESULTS
+
+    try {
+      let { data } = await axios(`/code?number=${cleanNum}`);
+      let code = data.code || "Service Unavailable";
+
+      waitingMessage.style.display = 'none';  // HIDE LOADER
+
+      a.innerHTML = `
+        <font id="copy" onclick="Copy()" style="color:red;font-weight:bold" size="5">
+          CODE: <span style="color:white;font-weight:bold">${code}</span>
+        </font>
+        <br><br><br>
+      `;
+    } catch (error) {
+      waitingMessage.style.display = 'none';
+      a.innerHTML = '<a style="color:white;font-weight:bold">Error contacting server</a>';
+    }
+  });
+</script>
 </body>
                               </html>
   
