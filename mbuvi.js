@@ -25,10 +25,23 @@ const listener = app.listen(PORT, () => {
 const _hb = setInterval(() => console.log('heartbeat'), 15000);
 
 // --- brief process lifecycle logging for debugging container exits ---
-process.on('beforeExit', (code) => console.log('process beforeExit', { code }));
-process.on('exit', (code) => console.log('process exit', { code }));
+const util = require('util');
+process.on('beforeExit', (code) => {
+    try {
+        const handles = process._getActiveHandles ? process._getActiveHandles() : [];
+        const handleNames = handles.map(h => h && h.constructor && h.constructor.name ? h.constructor.name : String(h));
+        console.log('process beforeExit', { code, handles: handles.length, handleNames });
+    } catch (e) { console.log('beforeExit error', e); }
+});
+process.on('exit', (code) => {
+    try {
+        console.log('process exit', { code });
+    } catch (e) { console.log('exit handler error', e); }
+});
 process.on('uncaughtException', (err) => console.error('uncaughtException', err && err.stack ? err.stack : err));
 process.on('unhandledRejection', (reason) => console.error('unhandledRejection', reason));
-process.on('SIGTERM', () => { console.log('SIGTERM received'); process.exit(0); });
+process.on('SIGTERM', () => { console.log('SIGTERM received'); /* don't forcibly exit, let platform handle shutdown */ });
+process.on('SIGINT', () => { console.log('SIGINT received'); });
+process.on('SIGHUP', () => { console.log('SIGHUP received'); });
 
 module.exports = app
