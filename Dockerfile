@@ -16,7 +16,6 @@ COPY . .
 # Ensure temp directory exists and is writable by the unprivileged user
 RUN mkdir -p /usr/src/app/temp && chown -R node:node /usr/src/app
 
-# Run as the unprivileged node user
 USER node
 
 ENV NODE_ENV=production
