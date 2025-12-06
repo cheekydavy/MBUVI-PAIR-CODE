@@ -1,19 +1,13 @@
-FROM node:20-bullseye-slim
+FROM node:20-bullseye
 
-WORKDIR /usr/src/app
+RUN apt-get update && apt-get install -y
+
+WORKDIR /app
 
 COPY package*.json ./
-RUN npm install --production
+
+RUN npm install
 
 COPY . .
-
 RUN mkdir -p /usr/src/app/temp && chown -R node:node /usr/src/app
-
-USER node
-
-ENV NODE_ENV=production
-ENV PORT=8000
-
-EXPOSE 8000
-
-CMD ["node", "./mbuvi.js"]
+CMD ["node", "mbuvi.js"]
