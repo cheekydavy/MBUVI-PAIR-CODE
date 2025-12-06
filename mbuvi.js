@@ -23,4 +23,11 @@ Don't for get to give a star
  Server running on http://localhost:` + PORT)
 })
 
+// --- brief process lifecycle logging for debugging container exits ---
+process.on('beforeExit', (code) => console.log('process beforeExit', { code }));
+process.on('exit', (code) => console.log('process exit', { code }));
+process.on('uncaughtException', (err) => console.error('uncaughtException', err && err.stack ? err.stack : err));
+process.on('unhandledRejection', (reason) => console.error('unhandledRejection', reason));
+process.on('SIGTERM', () => { console.log('SIGTERM received'); process.exit(0); });
+
 module.exports = app
