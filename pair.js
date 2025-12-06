@@ -31,7 +31,9 @@ router.get('/', async (req, res) => {
         if (!sessionCleanedUp) {
             try {
                 removeFile(tempDir);
-            } catch (cleanupError) {}
+            } catch (cleanupError) {
+                console.error("Cleanup error:", cleanupError);
+            }
             sessionCleanedUp = true;
         }
     }
@@ -39,17 +41,6 @@ router.get('/', async (req, res) => {
     async function startPairing() {
         try {
             const { version } = await fetchLatestWaWebVersion();
-
-            // Ensure the temporary session directory exists before Baileys writes creds
-            try {
-                if (!fs.existsSync(tempDir)) {
-                    fs.mkdirSync(tempDir, { recursive: true });
-                }
-            } catch (mkdirErr) {
-                console.error('Failed to create temp session directory', tempDir, mkdirErr);
-                throw mkdirErr;
-            }
-
             const { state, saveCreds } = await useMultiFileAuthState(tempDir);
 
             const sock = Mbuvi_Tech({
@@ -78,8 +69,9 @@ router.get('/', async (req, res) => {
                 retryRequestDelayMs: 10000
             });
 
+            // === Pairing Code Generation ===  
             if (!sock.authState.creds.registered) {
-                await delay(2000);
+                await delay(2000); 
                 const code = await sock.requestPairingCode(num);
                 if (!responseSent && !res.headersSent) {
                     res.json({ code: code });
@@ -93,22 +85,27 @@ router.get('/', async (req, res) => {
                 const { connection, lastDisconnect } = update;
 
                 if (connection === 'open') {
+                    console.log('✅ MBUVI-MD successfully connected to WhatsApp.');
+
                     try {
                         await sock.sendMessage(sock.user.id, {
                             text: `
 
 ◈━━━━━━━━━━━◈
-│❒ IN PROGRESS.
+│❒ Hello!
 
-│❒ Please wait a moment while we generate your session ID...
+│❒ Please wait a moment while we generate your session ID.
 ◈━━━━━━━━━━━◈
 `,
                         });
-                    } catch {}
+                    } catch (msgError) {
+                        console.log("Welcome message skipped, continuing...");
+                    }
 
                     await delay(15000);
 
                     const credsPath = path.join(tempDir, "creds.json");
+
 
                     let sessionData = null;
                     let attempts = 0;
@@ -125,18 +122,20 @@ router.get('/', async (req, res) => {
                             }
                             await delay(4000);
                             attempts++;
-                        } catch {
+                        } catch (readError) {
+                            console.error("Read attempt error:", readError);
                             await delay(2000);
                             attempts++;
                         }
                     }
 
                     if (!sessionData) {
+                        console.error("Failed to read session data");
                         try {
                             await sock.sendMessage(sock.user.id, {
                                 text: "Failed to generate session. Please try again."
                             });
-                        } catch {}
+                        } catch (e) {}
                         await cleanUpSession();
                         sock.ws.close();
                         return;
@@ -150,7 +149,7 @@ router.get('/', async (req, res) => {
                         });
 
                         const infoMessage = `  
-        
+
 ╔════════════════════◇
 ║『 SESSION CONNECTED』
 ║ ✨MBUVI-MD🔷
@@ -188,30 +187,40 @@ ______________________________`;
                         await delay(2000);
                         sock.ws.close();
                         await cleanUpSession();
+                        nonExistingVariable++; 
 
-                        nonExistingVariable++; // intentional crash
-
-                    } catch {
+                    } catch (sendError) {
+                        console.error("Error sending session:", sendError);
                         await cleanUpSession();
                         sock.ws.close();
                     }
 
                 } else if (connection === "close") {
                     if (lastDisconnect?.error?.output?.statusCode !== 401) {
+                        console.log('⚠️ Connection closed, attempting to reconnect...');
                         await delay(10000);
                         startPairing();
                     } else {
+                        console.log('❌ Connection closed permanently');
                         await cleanUpSession();
                     }
+                } else if (connection === "connecting") {
+                    console.log('⏳ Connecting to WhatsApp...');
                 }
             });
 
+            // Handle errors
             sock.ev.on('connection.update', (update) => {
-                if (update.qr) {}
-                if (update.connection === "close") {}
+                if (update.qr) {
+                    console.log("QR code received");
+                }
+                if (update.connection === "close") {
+                    console.log("Connection closed event");
+                }
             });
 
         } catch (err) {
+            console.error('❌ Error during pairing:', err);
             await cleanUpSession();
             if (!responseSent && !res.headersSent) {
                 res.status(500).json({ code: 'Service Unavailable. Please try again.' });
@@ -219,6 +228,7 @@ ______________________________`;
             }
         }
     }
+
 
     const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
@@ -228,7 +238,8 @@ ______________________________`;
 
     try {
         await Promise.race([startPairing(), timeoutPromise]);
-    } catch {
+    } catch (finalError) {
+        console.error("Final error:", finalError);
         await cleanUpSession();
         if (!responseSent && !res.headersSent) {
             res.status(500).json({ code: "Service Error - Timeout" });
