@@ -2,6 +2,7 @@ const express = require('express');
 const app = express();
 __path = process.cwd()
 const bodyParser = require("body-parser");
+const http = require('http');
 const PORT = process.env.PORT || 8000;
 let server = require('./qr'),
     code = require('./pair');
@@ -16,9 +17,14 @@ res.sendFile(__path + '/main.html')
 })
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.listen(PORT, () => {
-    console.log(`
- Server running on http://localhost:` + PORT)
-})
 
-module.exports = app
+// simple health endpoint used by Fly.io / other platforms
+app.get('/health', (req, res) => res.status(200).send('MBUVI MD running'));
+
+// create an HTTP server from the Express app and bind to 0.0.0.0
+const serverInstance = http.createServer(app);
+serverInstance.listen(PORT, '0.0.0.0', () => {
+    console.log(`HTTP server listening on ${PORT}`);
+});
+
+module.exports = app;
