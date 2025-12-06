@@ -33,7 +33,7 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install
+RUN npm install install --legacy-peer-deps
 
 COPY . .
 RUN mkdir -p /usr/src/app/temp && chown -R node:node /usr/src/app
