@@ -16,12 +16,13 @@ res.sendFile(__path + '/main.html')
 })
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.listen(PORT, () => {
-    console.log(`
-Don't for get to give a star
+const listener = app.listen(PORT, () => {
+    console.log(`\nDon't for get to give a star\n\n Server running on http://localhost:${PORT}`);
+    try { console.log('listening on', listener.address()); } catch {}
+});
 
- Server running on http://localhost:` + PORT)
-})
+// heartbeat to help identify premature exits and keep the event loop active
+const _hb = setInterval(() => console.log('heartbeat'), 15000);
 
 // --- brief process lifecycle logging for debugging container exits ---
 process.on('beforeExit', (code) => console.log('process beforeExit', { code }));
