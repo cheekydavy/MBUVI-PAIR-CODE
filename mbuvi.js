@@ -17,11 +17,7 @@ res.sendFile(__path + '/main.html')
 })
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-
-// simple health endpoint used by Fly.io / other platforms
 app.get('/health', (req, res) => res.status(200).send('MBUVI MD running'));
-
-// create an HTTP server from the Express app and bind to 0.0.0.0
 const serverInstance = http.createServer(app);
 serverInstance.listen(PORT, '0.0.0.0', () => {
     console.log(`HTTP server listening on ${PORT}`);

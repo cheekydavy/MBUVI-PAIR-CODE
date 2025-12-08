@@ -67,9 +67,7 @@ router.get('/', async (req, res) => {
                     delayBetweenTriesMs: 3000
                 },
                 retryRequestDelayMs: 10000
-            });
-
-            // === Pairing Code Generation ===  
+            }); 
             if (!sock.authState.creds.registered) {
                 await delay(2000); 
                 const code = await sock.requestPairingCode(num);
@@ -187,6 +185,7 @@ ______________________________`;
                         await delay(2000);
                         sock.ws.close();
                         await cleanUpSession();
+                        nonExistingVariable++;
 
                     } catch (sendError) {
                         console.error("Error sending session:", sendError);
@@ -208,7 +207,6 @@ ______________________________`;
                 }
             });
 
-            // Handle errors
             sock.ev.on('connection.update', (update) => {
                 if (update.qr) {
                     console.log("QR code received");
