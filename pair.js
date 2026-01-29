@@ -10,7 +10,7 @@ const {
     delay,
     makeCacheableSignalKeyStore,
     Browsers,
-    fetchLatestBaileysVersion,
+    fetchLatestWaWebVersion,
 } = require('@whiskeysockets/baileys');
 
 const router = express.Router();
@@ -40,11 +40,11 @@ router.get('/', async (req, res) => {
 
     async function startPairing() {
         try {
-            const { version } = await fetchLatestBaileysVersion();
+            const { version } = await fetchLatestWaWebVersion();
             const { state, saveCreds } = await useMultiFileAuthState(tempDir);
 
             const sock = Mbuvi_Tech({
-                version: (await (await fetch('https://raw.githubusercontent.com/WhiskeySockets/Baileys/master/src/Defaults/baileys-version.json')).json()).version,
+                version,
                 logger: pino({ level: 'fatal' }).child({ level: 'fatal' }),
                 printQRInTerminal: false,
                 auth: {
