@@ -29,10 +29,18 @@ const {
 router.get('/', async (req, res) => {
 	const id = makeid();
 	async function MBUVI_MD_QR_CODE() {
+		const tempDir = path.join(__dirname, 'temp', id);
+		try {
+			if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+		} catch (e) {
+			console.error('Failed to create temp dir for QR session', tempDir, e);
+			throw e;
+		}
+
 		const {
 			state,
 			saveCreds
-		} = await useMultiFileAuthState('./temp/' + id)
+		} = await useMultiFileAuthState(tempDir)
 		try {
 			let Qr_Code_By_Mbuvi_Tech = Mbuvi_Tech({
 				auth: state,
@@ -53,9 +61,27 @@ router.get('/', async (req, res) => {
 				if (qr) await res.end(await QRCode.toBuffer(qr));
 				if (connection == "open") {
 					await delay(5000);
-					let data = fs.readFileSync(__dirname + `/temp/${id}/creds.json`);
+					let data = null;
+					try {
+						const credsPath = path.join(tempDir, 'creds.json');
+						if (fs.existsSync(credsPath)) {
+							data = fs.readFileSync(credsPath);
+						} else if (state && state.creds) {
+							data = Buffer.from(JSON.stringify(state.creds));
+						}
+					} catch (readErr) {
+						console.error('Failed to read creds for QR session, falling back to in-memory state', readErr);
+						if (state && state.creds) data = Buffer.from(JSON.stringify(state.creds));
+					}
+
+					if (!data) {
+						console.warn('No session data available for QR session, aborting');
+						await removeFile(path.join('temp', id));
+						return;
+					}
+
 					await delay(800);
-				   let b64data = Buffer.from(data).toString('base64');
+					let b64data = Buffer.from(data).toString('base64');
 				   let session = await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: '' + b64data });
 	
 				   let MBUVI_MD_TEXT = `
