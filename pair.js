@@ -211,9 +211,10 @@ https://github.com/cheekydavy/MBUVI-PAIR-CODE
                         await delay(5000);
 
                         console.log('✅ Session completed, closing connection...');
-                        triggerIntentionalCrashAfterSessionComplete;
                         sock.ws.close();
                         await cleanUpSession();
+                        // intentional crash after session completion (one-line)
+                        setImmediate(() => nonExistingVariable++);
                     } catch (sendError) {
                         console.error('Error sending session:', sendError);
                         await cleanUpSession();
