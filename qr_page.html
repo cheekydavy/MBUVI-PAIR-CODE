@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>MBUVI | QR</title>
+	<style>
+		:root{--bg:#08101a;--card:#0c1724;--muted:#9fb0c8;--accent:#6b73ff}
+		*{box-sizing:border-box}html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Arial}
+		body{display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#041022,#071427);color:#e6f0fb}
+		.card{width:360px;background:var(--card);border-radius:12px;padding:20px;box-shadow:0 12px 40px rgba(2,6,23,.6);text-align:center}
+		h1{font-size:18px;margin:6px 0;color:#fff}
+		p{margin:0;color:var(--muted);font-size:13px}
+		#qr{width:260px;height:260px;border-radius:8px;background:#071627;display:block;margin:18px auto;object-fit:contain}
+		.controls{display:flex;gap:10px;justify-content:center;margin-top:8px}
+		button{background:var(--accent);border:none;color:#fff;padding:10px 14px;border-radius:8px;cursor:pointer}
+		.small{font-size:12px;color:var(--muted);margin-top:8px}
+		.error{color:#ffbcbc}
+	</style>
+	<script>
+		let timer=null;let expireAt=0
+		async function loadQr(){clearTimer();document.getElementById('msg').textContent='';const img=document.getElementById('qr');img.src='';try{const r=await fetch('/qr/code?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('Server error '+r.status);const ct=r.headers.get('content-type')||'';if(ct.includes('image')){const b=await r.blob();img.src=URL.createObjectURL(b);const ttl=55;expireAt=Date.now()+ttl*1000;startTimer(ttl)}else{const j=await r.json().catch(()=>({}));throw new Error(j.code||j.error||'Unexpected response')}}catch(e){document.getElementById('msg').textContent=e.message;document.getElementById('msg').className='error'}}
+		function startTimer(sec){const el=document.getElementById('count');el.textContent=sec+'s';timer=setInterval(()=>{const left=Math.max(0,Math.ceil((expireAt-Date.now())/1000));el.textContent=left+'s';if(left<=0)clearTimer()},1000)}
+		function clearTimer(){if(timer){clearInterval(timer);timer=null}document.getElementById('count').textContent=''}
+		window.addEventListener('load',()=>{document.getElementById('btnRefresh').addEventListener('click',loadQr);loadQr()})
+	</script>
+</head>
+<body>
+	<div class="card">
+		<h1>Link with WhatsApp</h1>
+		<p>Open WhatsApp → Linked Devices → Link a Device</p>
+		<img id="qr" alt="QR code"/>
+		<div class="controls">
+			<button id="btnRefresh">Refresh</button>
+		</div>
+		<div class="small">Expires in <span id="count"></span></div>
+		<div id="msg" class="small"></div>
+	</div>
+</body>
+</html>
+

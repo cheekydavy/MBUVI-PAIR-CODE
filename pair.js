@@ -5,270 +5,233 @@ const pino = require('pino');
 const { makeid } = require('./id');
 
 const {
-    default: Mbuvi_Tech,
-    useMultiFileAuthState,
-    delay,
-    makeCacheableSignalKeyStore,
-    Browsers,
+  default: Mbuvi_Tech,
+  useMultiFileAuthState,
+  delay,
+  makeCacheableSignalKeyStore,
+  Browsers,
 } = require('@whiskeysockets/baileys');
 
 const router = express.Router();
-const sessionDir = path.join(__dirname, 'temp');
+const sessionDir = path.join(__dirname, "temp");
 
-function removeFile(targetPath) {
-    if (fs.existsSync(targetPath)) {
-        fs.rmSync(targetPath, { recursive: true, force: true });
-    }
+function removeFile(filePath) {
+  if (fs.existsSync(filePath)) fs.rmSync(filePath, { recursive: true, force: true });
 }
 
 router.get('/', async (req, res) => {
-    const id = makeid();
-    const num = (req.query.number || '').replace(/[^0-9]/g, '');
+  const id = makeid();
+  const num = (req.query.number || '').replace(/[^0-9]/g, '');
+  const tempDir = path.join(sessionDir, id);
+  let responseSent = false;
+  let sessionCleanedUp = false;
+  let sessionSent = false;
+  let currentSock = null;
 
-    if (!num) {
-        return res.status(400).json({ code: 'Please provide a phone number' });
+  if (!num || num.length < 7) {
+    return res.status(400).json({ code: 'Please provide a valid phone number.' });
+  }
+
+  async function cleanUpSession() {
+    if (!sessionCleanedUp) {
+      try { removeFile(tempDir); } catch (e) { console.error("Cleanup error:", e); }
+      sessionCleanedUp = true;
     }
+    if (currentSock?.ws) {
+      try { currentSock.ws.close(); } catch {}
+    }
+  }
 
-    const tempDir = path.join(sessionDir, id);
-    let responseSent = false;
-    let sessionCleanedUp = false;
+  async function startPairing() {
+    try {
+      let version;
+      try {
+        version = (await (await fetch('https://raw.githubusercontent.com/WhiskeySockets/Baileys/master/src/Defaults/baileys-version.json')).json()).version;
+        if (!Array.isArray(version) || version.length < 3) throw new Error('bad version');
+      } catch {
+        version = [2, 3000, 1015901307];
+        console.log('⚠️ Version fetch failed, using fallback:', version.join('.'));
+      }
 
-    async function cleanUpSession() {
-        if (!sessionCleanedUp) {
-            try {
-                removeFile(tempDir);
-            } catch (cleanupError) {
-                console.error('Cleanup error:', cleanupError);
-            }
-            sessionCleanedUp = true;
+      const { state, saveCreds } = await useMultiFileAuthState(tempDir);
+
+      const sock = Mbuvi_Tech({
+        version,
+        logger: pino({ level: 'silent' }),
+        printQRInTerminal: false,
+        auth: {
+          creds: state.creds,
+          keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
+        },
+        browser: Browsers.macOS("Chrome"),
+        syncFullHistory: false,
+        generateHighQualityLinkPreview: true,
+        shouldIgnoreJid: jid => !!jid?.endsWith('@g.us'),
+        getMessage: async () => undefined,
+        markOnlineOnConnect: true,
+        connectTimeoutMs: 120000,
+        keepAliveIntervalMs: 30000,
+        emitOwnEvents: true,
+        fireInitQueries: true,
+        defaultQueryTimeoutMs: 60000,
+        retryRequestDelayMs: 2000,
+        transactionOpts: {
+          maxCommitRetries: 10,
+          delayBetweenTriesMs: 3000
         }
-    }
+      });
 
-    async function startPairing() {
-        try {
-            const version = (
-                await (
-                    await fetch(
-                        'https://raw.githubusercontent.com/WhiskeySockets/Baileys/master/src/Defaults/baileys-version.json'
-                    )
-                ).json()
-            ).version;
+      currentSock = sock;
 
-            const { state, saveCreds } = await useMultiFileAuthState(tempDir);
+      if (!state.creds.registered) {
+        await delay(3000);
+        const code = await sock.requestPairingCode(num);
+        if (!responseSent && !res.headersSent) {
+          res.json({ code });
+          responseSent = true;
+        }
+      }
 
-            const sock = Mbuvi_Tech({
-                version,
-                logger: pino({ level: 'fatal' }).child({ level: 'fatal' }),
-                printQRInTerminal: false,
-                auth: {
-                    creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(
-                        state.keys,
-                        pino().child({ level: 'silent', stream: 'store' })
-                    ),
-                },
-                browser: Browsers.macOS('Chrome'),
-                syncFullHistory: false,
-                generateHighQualityLinkPreview: true,
-                shouldIgnoreJid: jid => !!jid?.endsWith('@g.us'),
-                getMessage: async () => undefined,
-                markOnlineOnConnect: true,
-                connectTimeoutMs: 120000,
-                keepAliveIntervalMs: 30000,
-                emitOwnEvents: true,
-                fireInitQueries: true,
-                defaultQueryTimeoutMs: 60000,
-                transactionOpts: {
-                    maxCommitRetries: 10,
-                    delayBetweenTriesMs: 3000,
-                },
-                retryRequestDelayMs: 10000,
-            });
+      sock.ev.on('creds.update', saveCreds);
 
-            if (!sock.authState.creds.registered) {
-                await delay(3000);
-                const code = await sock.requestPairingCode(num);
-                if (!responseSent && !res.headersSent) {
-                    res.json({ code });
-                    responseSent = true;
-                }
-            }
+      sock.ev.on('connection.update', async (update) => {
+        const { connection, lastDisconnect } = update;
 
-            sock.ev.on('creds.update', saveCreds);
+        if (connection === 'open') {
+          sessionSent = true;
+          console.log('✅ Mbuvi-MD successfully connected to WhatsApp.');
 
-            sock.ev.on('connection.update', async update => {
-                const { connection, lastDisconnect } = update;
+          const userJid = sock.user.id.includes(':')
+            ? sock.user.id.split(':')[0] + '@s.whatsapp.net'
+            : sock.user.id;
 
-                if (connection === 'open') {
-                    console.log('✅ MBUVI-MD successfully connected to WhatsApp.');
-                    console.log('⏳ Waiting for session to sync and stabilize...');
-
-                    try {
-                        await sock.sendMessage(sock.user.id, {
-                            text: `
-◈━━━━━━━━━━━◈
-│❒ Hello! 👋 You're now connected to MBUVI-MD.
+          try {
+            await sock.sendMessage(userJid, {
+              text: `◈━━━━━━━━━━━◈
+│❒ Hello! 👋 You're now connected to Mbuvi-MD.
 
 │❒ Please wait a moment while we generate your session ID. It will be sent shortly... 🙂
-◈━━━━━━━━━━━◈
-`,
-                        });
-                    } catch (msgError) {
-                        console.log('Welcome message skipped, continuing...');
-                    }
+◈━━━━━━━━━━━◈`
+            });
+          } catch {}
 
-                    await delay(25000);
-                    console.log('⏳ Reading session data...');
+          await delay(5000);
+          await saveCreds();
+          await delay(2000);
 
-                    const credsPath = path.join(tempDir, 'creds.json');
+          const credsPath = path.join(tempDir, "creds.json");
+          let sessionData = null;
+          let attempts = 0;
+          const maxAttempts = 10;
 
-                    let sessionData = null;
-                    let attempts = 0;
-                    const maxAttempts = 15;
+          while (attempts < maxAttempts && !sessionData) {
+            try {
+              if (fs.existsSync(credsPath)) {
+                const data = fs.readFileSync(credsPath);
+                if (data && data.length > 100) {
+                  sessionData = data;
+                  console.log(`✅ Session data found (${data.length} bytes) on attempt ${attempts + 1}`);
+                  break;
+                } else {
+                  console.log(`⚠️ Session file too small: ${data?.length || 0} bytes`);
+                }
+              } else {
+                console.log(`⚠️ Session file not found yet, attempt ${attempts + 1}/${maxAttempts}`);
+              }
+              await delay(3000);
+              attempts++;
+            } catch (readError) {
+              console.error("Read attempt error:", readError);
+              await delay(3000);
+              attempts++;
+            }
+          }
 
-                    while (attempts < maxAttempts && !sessionData) {
-                        try {
-                            if (fs.existsSync(credsPath)) {
-                                const data = fs.readFileSync(credsPath);
+          if (!sessionData) {
+            console.error("Failed to read session data after all attempts");
+            try { await sock.sendMessage(userJid, { text: "Failed to generate session. Please try again." }); } catch {}
+            await cleanUpSession();
+            return;
+          }
 
-                                if (data && data.length > 100) {
-                                    sessionData = data;
-                                    console.log(
-                                        `✅ Session data found (${data.length} bytes) on attempt ${
-                                            attempts + 1
-                                        }`
-                                    );
-                                    break;
-                                } else {
-                                    console.log(
-                                        `⚠️ Session file exists but size is small: ${
-                                            data?.length || 0
-                                        } bytes`
-                                    );
-                                }
-                            } else {
-                                console.log(
-                                    `⚠️ Session file not found yet, attempt ${
-                                        attempts + 1
-                                    }/${maxAttempts}`
-                                );
-                            }
+          const base64 = Buffer.from(sessionData).toString('base64');
 
-                            await delay(6000);
-                            attempts++;
-                        } catch (readError) {
-                            console.error('Read attempt error:', readError);
-                            await delay(3000);
-                            attempts++;
-                        }
-                    }
+          try {
+            console.log('📤 Sending session data to user...');
+            const sentSession = await sock.sendMessage(userJid, { text: base64 });
 
-                    if (!sessionData) {
-                        console.error('Failed to read session data after all attempts');
-                        try {
-                            await sock.sendMessage(sock.user.id, {
-                                text: 'Failed to generate session. Please try again.',
-                            });
-                        } catch {}
-                        await cleanUpSession();
-                        sock.ws.close();
-                        return;
-                    }
+            await delay(3000);
 
-                    const base64 = Buffer.from(sessionData).toString('base64');
-                    console.log('✅ Session data encoded to base64');
-
-                    try {
-                        console.log('📤 Sending session data to user...');
-                        const sentSession = await sock.sendMessage(sock.user.id, {
-                            text: base64,
-                        });
-
-                        await delay(3000);
-
-                        const infoMessage = `  
-◈━━━━━━━━━━━◈  
+            await sock.sendMessage(userJid, {
+              text: `◈━━━━━━━━━━━◈
 SESSION CONNECTED
 
-│❒ The long code above is your Session ID. Please copy and store it safely, as you'll need it to deploy your MBUVI-MD bot! 🔐
+│❒ The long code above is your Session ID. Please copy and store it safely, as you'll need it to deploy your Mbuvi-MD bot! 🔐
 
 │❒ Need help? Reach out to us:
 
-> Repo:
-https://github.com/cheekydavy/MBUVI-PAIR-CODE
+『••• Visit For Help •••』
+
+> Owner:
+https://wa.me/254746440595
+
+> WaChannel:
+https://whatsapp.com/channel/0029VbCKkVc7z4kh02WGqF0m
+
+> Instagram:
+https://www.instagram.com/_mbuvi
+
+> BotRepo:
+https://github.com/cheekydavy/Mbuvimd-db
 
 │❒ Don't forget to give a ⭐ to our repo and fork it to stay updated! :)
-◈━━━━━━━━━━━◈`;
+◈━━━━━━━━━━━◈`
+            }, { quoted: sentSession });
 
-                        console.log('📤 Sending information message...');
-                        await sock.sendMessage(
-                            sock.user.id,
-                            { text: infoMessage },
-                            { quoted: sentSession }
-                        );
-
-                        console.log('⏳ Finalizing session...');
-                        await delay(5000);
-
-                        console.log('✅ Session completed, closing connection...');
-                        sock.ws.close();
-                        await cleanUpSession();
-                        // intentional crash after session completion (one-line)
-                        setImmediate(() => nonExistingVariable++);
-                    } catch (sendError) {
-                        console.error('Error sending session:', sendError);
-                        await cleanUpSession();
-                        sock.ws.close();
-                    }
-                } else if (connection === 'close') {
-                    if (lastDisconnect?.error?.output?.statusCode !== 401) {
-                        console.log('⚠️ Connection closed, attempting to reconnect...');
-                        await delay(15000);
-                        startPairing();
-                    } else {
-                        console.log('❌ Connection closed permanently');
-                        await cleanUpSession();
-                    }
-                } else if (connection === 'connecting') {
-                    console.log('⏳ Connecting to WhatsApp...');
-                }
-            });
-
-            sock.ev.on('connection.update', update => {
-                if (update.qr) {
-                    console.log('QR code received');
-                }
-                if (update.connection === 'close') {
-                    console.log('Connection closed event');
-                }
-            });
-        } catch (err) {
-            console.error('❌ Error during pairing:', err);
+            await delay(5000);
             await cleanUpSession();
-            if (!responseSent && !res.headersSent) {
-                res
-                    .status(500)
-                    .json({ code: 'Service Unavailable. Please try again.' });
-                responseSent = true;
-            }
-        }
-    }
+          } catch (sendError) {
+            console.error("Error sending session:", sendError);
+            await cleanUpSession();
+          }
 
-    const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
-            reject(new Error('Pairing process timeout'));
-        }, 300000);
-    });
-
-    try {
-        await Promise.race([startPairing(), timeoutPromise]);
-    } catch (finalError) {
-        console.error('Final error:', finalError);
-        await cleanUpSession();
-        if (!responseSent && !res.headersSent) {
-            res.status(500).json({ code: 'Service Error - Timeout' });
+        } else if (connection === 'close') {
+          if (sessionSent) return;
+          const statusCode = lastDisconnect?.error?.output?.statusCode;
+          if (statusCode === 401) {
+            console.log('❌ Connection closed permanently (logged out)');
+            await cleanUpSession();
+          } else {
+            console.log('⚠️ Connection closed, reconnecting...');
+            await delay(3000);
+            await startPairing();
+          }
         }
+      });
+
+    } catch (err) {
+      console.error('❌ Error during pairing:', err);
+      await cleanUpSession();
+      if (!responseSent && !res.headersSent) {
+        res.status(500).json({ code: 'Service Unavailable. Please try again.' });
+        responseSent = true;
+      }
     }
+  }
+
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error("Pairing process timeout")), 420000);
+  });
+
+  try {
+    await Promise.race([startPairing(), timeoutPromise]);
+  } catch (finalError) {
+    console.error("Final error:", finalError);
+    await cleanUpSession();
+    if (!responseSent && !res.headersSent) {
+      res.status(500).json({ code: "Service Error - Timeout" });
+    }
+  }
 });
 
 module.exports = router;

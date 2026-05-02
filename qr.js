@@ -1,138 +1,232 @@
-const PastebinAPI = require('pastebin-js'),
-pastebin = new PastebinAPI('EMWTMkQAVfJa9kM-MRUrxd5Oku1U7pgL')
-const {makeid} = require('./id');
-const QRCode = require('qrcode');
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
-let router = express.Router()
-const pino = require("pino");
-const {
-	default: Mbuvi_Tech,
-	useMultiFileAuthState,
-	jidNormalizedUser,
-	Browsers,
-	delay,
-	makeInMemoryStore,
-} = require("@whiskeysockets/baileys");
+const { makeid } = require('./id');
+  const QRCode = require('qrcode');
+  const express = require('express');
+  const path = require('path');
+  const fs = require('fs');
+  const pino = require('pino');
 
-function removeFile(FilePath) {
-	if (!fs.existsSync(FilePath)) return false;
-	fs.rmSync(FilePath, {
-		recursive: true,
-		force: true
-	})
-};
-const {
-	readFile
-} = require("node:fs/promises")
-router.get('/', async (req, res) => {
-	const id = makeid();
-	async function MBUVI_MD_QR_CODE() {
-		const tempDir = path.join(__dirname, 'temp', id);
-		try {
-			if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-		} catch (e) {
-			console.error('Failed to create temp dir for QR session', tempDir, e);
-			throw e;
-		}
+  const {
+      default: Mbuvi_Tech,
+      useMultiFileAuthState,
+      Browsers,
+      delay,
+      makeCacheableSignalKeyStore,
+      fetchLatestBaileysVersion
+  } = require('@whiskeysockets/baileys');
 
-		const {
-			state,
-			saveCreds
-		} = await useMultiFileAuthState(tempDir)
-		try {
-			let Qr_Code_By_Mbuvi_Tech = Mbuvi_Tech({
-				auth: state,
-				printQRInTerminal: false,
-				logger: pino({
-					level: "silent"
-				}),
-				browser: Browsers.macOS("Desktop"),
-			});
+  const router = express.Router();
+  const tempRoot = path.join(__dirname, 'temp');
 
-			Qr_Code_By_Mbuvi_Tech.ev.on('creds.update', saveCreds)
-			Qr_Code_By_Mbuvi_Tech.ev.on("connection.update", async (s) => {
-				const {
-					connection,
-					lastDisconnect,
-					qr
-				} = s;
-				if (qr) await res.end(await QRCode.toBuffer(qr));
-				if (connection == "open") {
-					await delay(5000);
-					let data = null;
-					try {
-						const credsPath = path.join(tempDir, 'creds.json');
-						if (fs.existsSync(credsPath)) {
-							data = fs.readFileSync(credsPath);
-						} else if (state && state.creds) {
-							data = Buffer.from(JSON.stringify(state.creds));
-						}
-					} catch (readErr) {
-						console.error('Failed to read creds for QR session, falling back to in-memory state', readErr);
-						if (state && state.creds) data = Buffer.from(JSON.stringify(state.creds));
-					}
+  if (!fs.existsSync(tempRoot)) {
+      fs.mkdirSync(tempRoot, { recursive: true });
+  }
 
-					if (!data) {
-						console.warn('No session data available for QR session, aborting');
-						await removeFile(path.join('temp', id));
-						return;
-					}
+  function removeFile(filePath) {
+      try {
+          if (fs.existsSync(filePath)) {
+              fs.rmSync(filePath, { recursive: true, force: true });
+          }
+      } catch {}
+  }
 
-					await delay(800);
-					let b64data = Buffer.from(data).toString('base64');
-				   let session = await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id, { text: '' + b64data });
-	
-				   let MBUVI_MD_TEXT = `
-╔════════════════════◇
-║『 SESSION CONNECTED』
-║ ✨MBUVI-MD🔷
-║ ✨Mbuvi Tech🔷
-╚════════════════════╝
-________________________
-╔════════════════════◇
-║『 YOU'VE CHOSEN MBUVI MD 』
-║ -Set the session ID in Heroku:
-║ - SESSION_ID: mbuvi~<data>
-╚════════════════════╝
-╔════════════════════◇
-║ 『••• _V𝗶𝘀𝗶𝘁 𝗙𝗼𝗿_H𝗲𝗹𝗽 •••』
-║❍ 𝐘𝐨𝐮𝐭𝐮𝐛𝐞: _youtube.com/@Rhodvick_
-║❍ 𝐎𝐰𝐧𝐞𝐫: _https://wa.me/254746440595_
-║❍ 𝐑𝐞𝐩𝐨: _https://github.com/cheekydavy/mbuvi-md_
-║❍ 𝐖𝐚𝐆𝐫𝐨𝐮𝐩: _https://chat.whatsapp.com/JZxR4t6JcMv66OEiRRCB2P_
-║❍ 𝐖𝐚𝐂𝐡𝐚𝐧𝐧𝐞𝐬𝐥: _https://whatsapp.com/channel/0029VaPZWbY1iUxVVRIIOm0D_
-║❍ 𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦: _https://www.instagram.com/_mbuvi_
-║ ☬ ☬ ☬ ☬
-╚═════════════════════╝ 
- 𒂀 MBUVI MD
-______________________________
+  router.get('/', async (req, res) => {
+      const id = makeid();
+      const sessionDir = path.join(tempRoot, id);
 
-Don't Forget To Give Star⭐ To My Repo
-______________________________`
-	 await Qr_Code_By_Mbuvi_Tech.sendMessage(Qr_Code_By_Mbuvi_Tech.user.id,{text:MBUVI_MD_TEXT},{quoted:session})
+      let responseSent = false;
+      let finished     = false;
+      let reconnecting = false;
+      let sock         = null;
 
+      function cleanupSync() {
+          try {
+              if (sock?.ev) {
+                  try { sock.ev.removeAllListeners(); } catch {}
+              }
+              if (sock?.ws) {
+                  try { sock.ws.close(); } catch {}
+              }
+          } catch {}
+          removeFile(sessionDir);
+      }
 
+      async function fail(message, status) {
+          if (finished) return;
+          finished = true;
+          cleanupSync();
+          if (!responseSent && !res.headersSent) {
+              res.status(status || 500).json({ code: message });
+              responseSent = true;
+          }
+      }
 
-					await delay(100);
-					await Qr_Code_By_Mbuvi_Tech.ws.close();
-					return await removeFile("temp/" + id);
-				} else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode != 401) {
-					await delay(10000);
-					MBUVI_MD_QR_CODE();
-				}
-			});
-		} catch (err) {
-			if (!res.headersSent) {
-				await res.json({
-					code: "Service is Currently Unavailable"
-				});
-			}
-			console.log(err);
-			await removeFile("temp/" + id);
-		}
-	}
-	return await MBUVI_MD_QR_CODE()
-});
-module.exports = router
+      async function startSocket() {
+          if (finished) return;
+          try {
+              if (!fs.existsSync(sessionDir)) {
+                  fs.mkdirSync(sessionDir, { recursive: true });
+              }
+
+              const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
+              const { version } = await fetchLatestBaileysVersion();
+
+              if (sock?.ev) {
+                  try { sock.ev.removeAllListeners('connection.update'); } catch {}
+                  try { sock.ev.removeAllListeners('creds.update'); } catch {}
+              }
+
+              sock = Mbuvi_Tech({
+                  version,
+                  auth: {
+                      creds: state.creds,
+                      keys: makeCacheableSignalKeyStore(
+                          state.keys,
+                          pino({ level: 'silent' })
+                      ),
+                  },
+                  printQRInTerminal:          false,
+                  logger:                     pino({ level: 'silent' }),
+                  browser:                    Browsers.macOS('Chrome'),
+                  syncFullHistory:            false,
+                  connectTimeoutMs:           120000,
+                  keepAliveIntervalMs:        10000,
+                  retryRequestDelayMs:        2000,
+                  maxRetries:                 10,
+                  generateHighQualityLinkPreview: true,
+                  markOnlineOnConnect:        false,
+              });
+
+              sock.ev.on('creds.update', saveCreds);
+
+              sock.ev.on('connection.update', async (update) => {
+                  try {
+                      const { connection, lastDisconnect, qr } = update;
+
+                      if (finished) return;
+
+                      if (qr && !responseSent && !res.headersSent) {
+                          try {
+                              const buf = await QRCode.toBuffer(qr, {
+                                  type: 'png', width: 300, margin: 2,
+                                  color: { dark: '#000000', light: '#ffffff' },
+                                  errorCorrectionLevel: 'M',
+                              });
+                              res.setHeader('Content-Type', 'image/png');
+                              res.setHeader('Cache-Control', 'no-store');
+                              res.end(buf);
+                          } catch {
+                              if (!res.headersSent) res.json({ qr });
+                          }
+                          responseSent = true;
+                      }
+
+                      if (connection === 'open') {
+                          finished = true;
+
+                          try { await sock.newsletterFollow('120363427340708111@newsletter'); } catch {}
+
+                          try {
+                              await sock.sendMessage(sock.user.id, {
+                                  text: `◈━━━━━━━━━━━◈
+  │❒ Hello! 👋 You're now connected to Mbuvi-MD.
+  │❒ Please wait a moment while we generate your session ID. It will be sent shortly... 🙂
+  ◈━━━━━━━━━━━◈`
+                              });
+                          } catch {}
+
+                          await delay(5000);
+                          await saveCreds();
+                          await delay(2000);
+
+                          const credsPath = path.join(sessionDir, 'creds.json');
+
+                          if (!fs.existsSync(credsPath)) {
+                              cleanupSync();
+                              return;
+                          }
+
+                          const data = fs.readFileSync(credsPath);
+                          const b64data = Buffer.from(data).toString('base64');
+
+                          try {
+                              const session = await sock.sendMessage(sock.user.id, {
+                                  text: b64data
+                              });
+
+                              await sock.sendMessage(
+                                  sock.user.id,
+                                  {
+                                      text: `◈━━━━━━━━━━━◈
+SESSION CONNECTED
+
+│❒ The long code above is your Session ID. Please copy and store it safely, as you'll need it to deploy your Mbuvi-MD bot! 🔐
+
+│❒ Need help? Reach out to us:
+
+『••• Visit For Help •••』
+
+> Owner:
+https://wa.me/254746440595
+
+> WaChannel:
+https://whatsapp.com/channel/0029VbCKkVc7z4kh02WGqF0m
+
+> Instagram:
+https://www.instagram.com/_mbuvi
+
+> BotRepo:
+https://github.com/cheekydavy/Mbuvimd-db
+
+│❒ Don't forget to give a ⭐ to our repo and fork it to stay updated! :)
+◈━━━━━━━━━━━◈`
+                                  },
+                                  { quoted: session }
+                              );
+                          } catch {}
+
+                          await delay(1000);
+                          cleanupSync();
+                          return;
+                      }
+
+                      if (connection === 'close') {
+                          if (finished) return;
+
+                          const statusCode =
+                              lastDisconnect?.error?.output?.statusCode ||
+                              lastDisconnect?.error?.statusCode;
+
+                          if (statusCode === 401) {
+                              return await fail('Logged out. Please try again.');
+                          }
+
+                          if (!reconnecting) {
+                              reconnecting = true;
+                              await delay(statusCode === 515 ? 1000 : 3000);
+                              reconnecting = false;
+                              return startSocket();
+                          }
+                      }
+
+                  } catch (err) {
+                      if (!finished) await fail('Service is Currently Unavailable. Please try again.');
+                  }
+              });
+
+          } catch (err) {
+              if (!finished) await fail('Service is Currently Unavailable. Please try again.');
+          }
+      }
+
+      const globalTimeout = setTimeout(function () {
+          if (!finished) fail('Request timed out. Please try again.');
+      }, 420000);
+
+      try {
+          await startSocket();
+      } catch {}
+
+      return;
+  });
+
+  module.exports = router;
