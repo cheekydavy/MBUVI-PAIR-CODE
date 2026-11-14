@@ -11,7 +11,9 @@ const { makeid } = require('./id');
       Browsers,
       delay,
       makeCacheableSignalKeyStore,
-      fetchLatestBaileysVersion
+      fetchLatestBaileysVersion,
+      generateWAMessageFromContent,
+      proto
   } = require('@whiskeysockets/baileys');
 
   const router = express.Router();
@@ -39,6 +41,7 @@ const { makeid } = require('./id');
       let sock         = null;
 
       function cleanupSync() {
+          try { clearTimeout(globalTimeout); } catch {}
           try {
               if (sock?.ev) {
                   try { sock.ev.removeAllListeners(); } catch {}
@@ -112,12 +115,13 @@ const { makeid } = require('./id');
                                   errorCorrectionLevel: 'M',
                               });
                               res.setHeader('Content-Type', 'image/png');
-                              res.setHeader('Cache-Control', 'no-store');
+                              res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
                               res.end(buf);
-                          } catch {
-                              if (!res.headersSent) res.json({ qr });
+                              responseSent = true;
+                          } catch (error) {
+                              console.error('QR image generation failed:', error);
+                              await fail('Unable to generate QR image. Please refresh and try again.', 500);
                           }
-                          responseSent = true;
                       }
 
                       if (connection === 'open') {
@@ -149,12 +153,32 @@ const { makeid } = require('./id');
                           const b64data = Buffer.from(data).toString('base64');
 
                           try {
-                              const session = await sock.sendMessage(sock.user.id, {
-                                  text: b64data
+                              const userJid = sock.user.id.includes(':')
+                                  ? sock.user.id.split(':')[0] + '@s.whatsapp.net'
+                                  : sock.user.id;
+                              const sessionMsg = await generateWAMessageFromContent(userJid, proto.Message.fromObject({
+                                  interactiveMessage: {
+                                      body: { text: b64data },
+                                      footer: { text: '' },
+                                      nativeFlowMessage: {
+                                          messageVersion: 1,
+                                          buttons: [{
+                                              name: 'cta_copy',
+                                              buttonParamsJson: JSON.stringify({
+                                                  display_text: 'Copy Session ID',
+                                                  copy_code: b64data,
+                                              }),
+                                          }],
+                                          messageParamsJson: '',
+                                      },
+                                  },
+                              }), { userJid: sock.user.id });
+                              const session = await sock.relayMessage(userJid, sessionMsg.message, {
+                                  messageId: sessionMsg.key.id,
                               });
 
                               await sock.sendMessage(
-                                  sock.user.id,
+                                  userJid,
                                   {
                                       text: `◈━━━━━━━━━━━◈
 SESSION CONNECTED

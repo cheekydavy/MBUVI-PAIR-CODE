@@ -116,6 +116,29 @@
       text-align: center;
     }
 
+    .pair-code-row {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+      color: #fff;
+      font-weight: 700;
+      font-size: 1.25rem;
+    }
+
+    .copy-button {
+      padding: 0.55rem 0.8rem;
+      border: 0;
+      border-radius: 0.5rem;
+      background: #5935ac;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .copy-button:hover { background: #754ee0; }
+
     @media (max-width: 500px) {
       .box {
         width: 90%; 
@@ -172,16 +195,27 @@
   let c = document.getElementById("number");
   let waitingMessage = document.getElementById("waiting-message");
 
-  async function Copy() {
-    let text = document.getElementById("copy").innerText;
-    let obj = document.getElementById("copy");
-    await navigator.clipboard.writeText(obj.innerText.replace('CODE: ', ''));
-    obj.innerText = "COPIED";
-    obj.style = "color:blue;font-weight:bold";
-    setTimeout(() => {
-      obj.innerText = text;
-      obj.style = "color:white;font-weight:bold";
-    }, 500);
+  async function Copy(code) {
+    const button = document.getElementById("copy-button");
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(code);
+      } else {
+        const field = document.createElement("textarea");
+        field.value = code;
+        field.style.position = "fixed";
+        field.style.opacity = "0";
+        document.body.appendChild(field);
+        field.select();
+        const copied = document.execCommand("copy");
+        field.remove();
+        if (!copied) throw new Error("Clipboard unavailable");
+      }
+      button.textContent = "Copied";
+    } catch (error) {
+      button.textContent = "Copy failed";
+    }
+    setTimeout(() => { if (button.isConnected) button.textContent = "Copy"; }, 1500);
   }
 
   b.addEventListener("click", async (e) => {
@@ -220,12 +254,17 @@
 
       waitingMessage.style.display = 'none';  // HIDE LOADER
 
+      const safeCode = String(code).replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[char]);
       a.innerHTML = `
-        <font id="copy" onclick="Copy()" style="color:red;font-weight:bold" size="5">
-          CODE: <span style="color:white;font-weight:bold">${code}</span>
-        </font>
-        <br><br><br>
+        <div class="pair-code-row">
+          <span>CODE: ${safeCode}</span>
+          <button id="copy-button" class="copy-button" type="button">Copy</button>
+        </div>
+        <br><br>
       `;
+      document.getElementById("copy-button").addEventListener("click", () => Copy(String(code)));
     } catch (error) {
   waitingMessage.style.display = 'none';
 
