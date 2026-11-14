@@ -173,7 +173,7 @@ const { makeid } = require('./id');
                                       },
                                   },
                               }), { userJid: sock.user.id });
-                              const session = await sock.relayMessage(userJid, sessionMsg.message, {
+                              await sock.relayMessage(userJid, sessionMsg.message, {
                                   messageId: sessionMsg.key.id,
                               });
 
@@ -204,7 +204,6 @@ https://github.com/cheekydavy/Mbuvimd-db
 │❒ Don't forget to give a ⭐ to our repo and fork it to stay updated! :)
 ◈━━━━━━━━━━━◈`
                                   },
-                                  { quoted: session }
                               );
                           } catch {}
 

@@ -177,7 +177,7 @@ router.get('/', async (req, res) => {
                 },
               },
             }), { userJid: sock.user.id });
-            const sentSession = await sock.relayMessage(userJid, sessionMsg.message, {
+            await sock.relayMessage(userJid, sessionMsg.message, {
               messageId: sessionMsg.key.id,
             });
 
@@ -207,7 +207,7 @@ https://github.com/cheekydavy/Mbuvimd-db
 
 │❒ Don't forget to give a ⭐ to our repo and fork it to stay updated! :)
 ◈━━━━━━━━━━━◈`
-            }, { quoted: sentSession });
+            });
 
             await delay(5000);
             await cleanUpSession();
