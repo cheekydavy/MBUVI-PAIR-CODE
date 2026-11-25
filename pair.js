@@ -67,12 +67,15 @@ router.get('/', async (req, res) => {
           creds: state.creds,
           keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' }))
         },
-        browser: Browsers.macOS("Chrome"),
+        // Match Baileys' documented pairing-code setup. Keeping the companion
+        // offline while requesting the code allows WhatsApp to show the phone
+        // notification instead of treating the account as an active web client.
+        browser: Browsers.android('Chrome'),
         syncFullHistory: false,
         generateHighQualityLinkPreview: true,
         shouldIgnoreJid: jid => !!jid?.endsWith('@g.us'),
         getMessage: async () => undefined,
-        markOnlineOnConnect: true,
+        markOnlineOnConnect: false,
         connectTimeoutMs: 120000,
         keepAliveIntervalMs: 30000,
         emitOwnEvents: true,
@@ -92,7 +95,9 @@ router.get('/', async (req, res) => {
         // acknowledging the request, retrying could create a second phone notification.
         pairingCodeRequested = true;
         await delay(3000);
+        console.log(`[Pair] Requesting WhatsApp pairing code for number ending ${num.slice(-4)} (push notification requested; online presence disabled).`);
         const code = await sock.requestPairingCode(num);
+        console.log(`[Pair] WhatsApp acknowledged the pairing-code request for number ending ${num.slice(-4)}.`);
         if (!responseSent && !res.headersSent) {
           res.json({ code });
           responseSent = true;
