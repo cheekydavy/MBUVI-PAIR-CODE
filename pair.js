@@ -30,6 +30,7 @@ router.get('/', async (req, res) => {
   let sessionSent = false;
   let pairingCodeRequested = false;
   let connectionOpenHandled = false;
+  let reconnectAttempts = 0;
   let currentSock = null;
 
   if (!num || num.length < 7) {
@@ -90,6 +91,10 @@ router.get('/', async (req, res) => {
 
       currentSock = sock;
 
+      // The pairing-code request emits creds.update. Listen before requesting
+      // the code so its pairing state is persisted if WhatsApp reconnects.
+      sock.ev.on('creds.update', saveCreds);
+
       if (!state.creds.registered && !pairingCodeRequested) {
         // Mark the request before awaiting it. If the socket drops while WhatsApp is
         // acknowledging the request, retrying could create a second phone notification.
@@ -97,6 +102,7 @@ router.get('/', async (req, res) => {
         await delay(3000);
         console.log(`[Pair] Requesting WhatsApp pairing code for number ending ${num.slice(-4)} (push notification requested; online presence disabled).`);
         const code = await sock.requestPairingCode(num);
+        await saveCreds();
         console.log(`[Pair] WhatsApp acknowledged the pairing-code request for number ending ${num.slice(-4)}.`);
         if (!responseSent && !res.headersSent) {
           res.json({ code });
@@ -104,10 +110,13 @@ router.get('/', async (req, res) => {
         }
       }
 
-      sock.ev.on('creds.update', saveCreds);
-
       sock.ev.on('connection.update', async (update) => {
+        if (sock !== currentSock) return;
         const { connection, lastDisconnect } = update;
+
+        if (connection) {
+          console.log(`[Pair] WhatsApp connection state=${connection} registered=${!!state.creds.registered} codeRequested=${pairingCodeRequested}`);
+        }
 
         if (connection === 'open') {
           if (connectionOpenHandled) return;
@@ -230,21 +239,21 @@ https://github.com/cheekydavy/Mbuvimd-db
 
         } else if (connection === 'close') {
           if (sessionSent) return;
-          if (pairingCodeRequested) {
-            // Start a fresh browser request if this pairing attempt drops. Re-requesting
-            // here can send the WhatsApp Business notification more than once.
+          const statusCode = lastDisconnect?.error?.output?.statusCode;
+          if (statusCode === 401) {
+            console.log('❌ Pairing connection logged out; clearing this temporary session.');
             await cleanUpSession();
             return;
           }
-          const statusCode = lastDisconnect?.error?.output?.statusCode;
-          if (statusCode === 401) {
-            console.log('❌ Connection closed permanently (logged out)');
+          if (reconnectAttempts >= 8) {
+            console.error(`[Pair] Reconnect limit reached after ${reconnectAttempts} attempts (status=${statusCode ?? 'unknown'}).`);
             await cleanUpSession();
-          } else {
-            console.log('⚠️ Connection closed, reconnecting...');
-            await delay(3000);
-            await startPairing();
+            return;
           }
+          reconnectAttempts += 1;
+          console.log(`[Pair] Connection closed (status=${statusCode ?? 'unknown'}); reconnecting with saved auth state, attempt ${reconnectAttempts}/8. Pairing code will not be requested again.`);
+          await delay(3000);
+          await startPairing();
         }
       });
 
