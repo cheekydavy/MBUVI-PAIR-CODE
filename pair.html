@@ -247,10 +247,12 @@
 
     waitingMessage.style.display = 'block';   // SHOW LOADER
     a.innerHTML = "";                         // CLEAR OLD RESULTS
+    b.disabled = true;
 
     try {
       let { data } = await axios(`/code?number=${cleanNum}`);
-      let code = data.code || "Service Unavailable";
+      if (!data.code) throw new Error(data.error || "Pairing code was not returned. Please try again.");
+      let code = data.code;
 
       waitingMessage.style.display = 'none';  // HIDE LOADER
 
@@ -267,6 +269,7 @@
       document.getElementById("copy-button").addEventListener("click", () => Copy(String(code)));
     } catch (error) {
   waitingMessage.style.display = 'none';
+  b.disabled = false;
 
   console.log("PAIRING ERROR →", error); // 🔥 REAL DEBUG LOG IN BROWSER
 

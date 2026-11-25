@@ -28,6 +28,8 @@ router.get('/', async (req, res) => {
   let responseSent = false;
   let sessionCleanedUp = false;
   let sessionSent = false;
+  let pairingCodeRequested = false;
+  let connectionOpenHandled = false;
   let currentSock = null;
 
   if (!num || num.length < 7) {
@@ -85,7 +87,10 @@ router.get('/', async (req, res) => {
 
       currentSock = sock;
 
-      if (!state.creds.registered) {
+      if (!state.creds.registered && !pairingCodeRequested) {
+        // Mark the request before awaiting it. If the socket drops while WhatsApp is
+        // acknowledging the request, retrying could create a second phone notification.
+        pairingCodeRequested = true;
         await delay(3000);
         const code = await sock.requestPairingCode(num);
         if (!responseSent && !res.headersSent) {
@@ -100,6 +105,8 @@ router.get('/', async (req, res) => {
         const { connection, lastDisconnect } = update;
 
         if (connection === 'open') {
+          if (connectionOpenHandled) return;
+          connectionOpenHandled = true;
           sessionSent = true;
           console.log('✅ Mbuvi-MD successfully connected to WhatsApp.');
 
@@ -218,6 +225,12 @@ https://github.com/cheekydavy/Mbuvimd-db
 
         } else if (connection === 'close') {
           if (sessionSent) return;
+          if (pairingCodeRequested) {
+            // Start a fresh browser request if this pairing attempt drops. Re-requesting
+            // here can send the WhatsApp Business notification more than once.
+            await cleanUpSession();
+            return;
+          }
           const statusCode = lastDisconnect?.error?.output?.statusCode;
           if (statusCode === 401) {
             console.log('❌ Connection closed permanently (logged out)');
